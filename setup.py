@@ -21,7 +21,7 @@ setuptools.setup(
         "pandas>1.4",
         "datasketches>=3.4.0",
         "datasketch>=1.5",
-        "fastapi[all]",
+        "fastapi[all]>=0.79",
         "pyarrow>=8.0"
     ],
     keywords='data sketch model etl automatic join ai embedding profiling',
