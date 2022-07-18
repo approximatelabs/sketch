@@ -1,0 +1,8 @@
+https://covid-19.datasettes.com/la-times.db
+https://covid-19.datasettes.com/covid.db
+https://fivethirtyeight.datasettes.com/fivethirtyeight.db
+https://congress-legislators.datasettes.com/legislators.db
+https://global-power-plants.datasettes.com/global-power-plants.db
+https://san-francisco.datasettes.com/sf-trees.db
+https://san-francisco.datasettes.com/sf-film-locations.db
+https://san-francisco.datasettes.com/food-trucks.db

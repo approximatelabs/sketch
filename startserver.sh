@@ -1,1 +1,1 @@
-uvicorn api.main:app --reload
+uvicorn sketch.api.main:app --reload
