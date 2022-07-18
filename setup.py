@@ -18,14 +18,16 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     install_requires=[
+        "altair>=4.2",
         "pandas>1.4",
+        "databases[aiosqlite]>=0.6",
         "datasketches>=3.4.0",
         "datasketch>=1.5",
         "fastapi[all]>=0.79",
-        "pyarrow>=8.0"
+        "pyarrow>=8.0",
     ],
-    keywords='data sketch model etl automatic join ai embedding profiling',
+    keywords="data sketch model etl automatic join ai embedding profiling",
     project_urls={
-        'Homepage': 'https://github.com/approximatelabs/sketch',
-    }
+        "Homepage": "https://github.com/approximatelabs/sketch",
+    },
 )

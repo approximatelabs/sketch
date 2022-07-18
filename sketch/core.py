@@ -1,17 +1,19 @@
-import sketch
-import sqlite3
 import base64
-import uuid
 import datetime
-import logging
 import heapq
+import logging
+import sqlite3
+import uuid
+
 import pandas as pd
+
+import sketch
 
 from .sketches import SketchBase
 
 
 class SketchPad:
-    verison = "0.0.1"
+    version = "0.0.1"
     sketches = SketchBase.all_sketches()
 
     def __init__(self, context=None):
@@ -67,7 +69,7 @@ class SketchPad:
         sp.id = data["metadata"]["id"]
         sp.metadata = data["metadata"]
         sp.context = data["context"]
-        sp.sketches = [SketchBase(s) for s in data["sketches"]]
+        sp.sketches = [SketchBase.from_dict(s) for s in data["sketches"]]
         return sp
 
 
@@ -117,7 +119,7 @@ class Portfolio:
             df = pd.read_sql(f"SELECT * from '{table}'", conn)
             df.attrs |= {"table_name": table, "source": sqlite_db_path}
             self.add_dataframe(df)
-        return list(tables.name)
+        return self
 
     def closest_overlap(self, sketchpad, n=5):
         scores = []

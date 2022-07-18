@@ -1,4 +1,5 @@
 import base64
+
 import datasketch
 
 # import datasketches
@@ -65,3 +66,21 @@ class MinHash(SketchBase):
     @staticmethod
     def unpack(data):
         return datasketch.LeanMinHash.deserialize(base64.b64decode(data))
+
+
+class HyperLogLog(SketchBase):
+    @classmethod
+    def from_series(cls, series):
+        hllpp = datasketch.HyperLogLogPlusPlus()
+        for d in series:
+            hllpp.update(str(d).encode("utf-8"))
+        return cls(data=hllpp)
+
+    def pack(self):
+        buf = bytearray(self.data.bytesize())
+        self.data.serialize(buf)
+        return base64.b64encode(buf).decode("utf-8")
+
+    @staticmethod
+    def unpack(data):
+        return datasketch.HyperLogLogPlusPlus.deserialize(base64.b64decode(data))

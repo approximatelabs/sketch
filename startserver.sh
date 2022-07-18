@@ -1,1 +1,1 @@
-uvicorn sketch.api.main:app --reload
+DEBUG=True uvicorn sketch.api.main:app --reload
