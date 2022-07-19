@@ -20,6 +20,9 @@ setuptools.setup(
     install_requires=[
         "altair>=4.2",
         "pandas>1.4",
+        "bcrypt>=3.2.2",
+        "python-jose>=3.3",
+        "passlib>=1.7.4",
         "databases[aiosqlite]>=0.6",
         "datasketches>=3.4.0",
         "datasketch>=1.5",
