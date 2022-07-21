@@ -13,10 +13,9 @@ async def table_exists(db: Database, table_name: str):
 
 async def get_migration_version(db: Database):
     if await table_exists(db, MIGRATION_VERSION_TABLE):
-        version_query = "SELECT version FROM :migration_table;"
-        return await db.fetch_one(
-            version_query, values={"migration_table": MIGRATION_VERSION_TABLE}
-        )
+        version_query = f"SELECT version FROM {MIGRATION_VERSION_TABLE};"
+        (result,) = await db.fetch_one(version_query)
+        return result
     return None
 
 
