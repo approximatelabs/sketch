@@ -5,6 +5,7 @@ import altair as alt
 import arel
 import numpy as np
 import pandas as pd
+from databases import Database
 from fastapi import Cookie, Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
@@ -13,13 +14,13 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseSettings
 
 from ..core import Portfolio, SketchPad
-from . import auth, models
+from . import auth, data, models
 
 
 # https://fastapi.tiangolo.com/advanced/settings/
 class Settings(BaseSettings):
     app_name: str = "SketchAPI"
-    sqlitepath: str = "sqlite+aiosqlite:///test.db"
+    db_url: str = "sqlite+aiosqlite:///test.db"
     debug: bool = False
 
 
@@ -28,6 +29,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 settings = Settings()
 app = FastAPI()
 templates = Jinja2Templates(directory=os.path.join(dir_path, "templates"))
+database = Database(settings.db_url)
 
 # from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 # app.add_middleware(HTTPSRedirectMiddleware)
@@ -48,6 +50,18 @@ app.mount(
     StaticFiles(directory=os.path.join(dir_path, "static")),
     name="static",
 )
+
+
+@app.on_event("startup")
+async def database_connect():
+    await database.connect()
+    await data.setup_database(database)
+
+
+@app.on_event("shutdown")
+async def database_disconnect():
+    await database.disconnect()
+
 
 # Set up data (for now just storing stuff on app...)
 app.portfolio = Portfolio()
