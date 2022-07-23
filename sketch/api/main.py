@@ -67,7 +67,7 @@ async def database_disconnect():
 app.portfolio = Portfolio()
 
 if _debug := settings.debug:
-    hot_reload = arel.HotReload(paths=[arel.Path(".")])
+    hot_reload = arel.HotReload(paths=[arel.Path(dir_path)])
     app.add_websocket_route("/hot-reload", route=hot_reload, name="hot-reload")
     app.add_event_handler("startup", hot_reload.startup)
     app.add_event_handler("shutdown", hot_reload.shutdown)

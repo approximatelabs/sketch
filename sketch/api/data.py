@@ -27,6 +27,14 @@ async def set_version(db: Database, version: int):
 MIGRATIONS = {}
 
 
+async def setup_database(db: Database):
+    async with db.transaction():
+        # check if table exists for "migration_version"
+        migration_version = await get_migration_version(db)
+        for _, migration in sorted(MIGRATIONS.items(), key=lambda x: x[0]):
+            await migration(db, migration_version)
+
+
 def migration(version: int):
     def decorator(func):
         async def run_migration(db: Database, db_version: int):
@@ -51,9 +59,44 @@ async def migration_0(db: Database):
     await db.execute(f"INSERT INTO {MIGRATION_VERSION_TABLE} (version) VALUES (0);")
 
 
-async def setup_database(db: Database):
-    async with db.transaction():
-        # check if table exists for "migration_version"
-        migration_version = await get_migration_version(db)
-        for _, migration in sorted(MIGRATIONS.items(), key=lambda x: x[0]):
-            await migration(db, migration_version)
+@migration(1)
+async def migration_1(db: Database):
+    queries = [
+        """
+        CREATE TABLE user (
+            username TEXT NOT NULL PRIMARY KEY,
+            full_name TEXT,
+            email TEXT,
+            hashed_password TEXT,
+            disabled INTEGER
+        ) WITHOUT ROWID;
+        """,
+        """
+        CREATE TABLE apikeys (
+            key TEXT NOT NULL PRIMARY KEY,
+            note TEXT,
+            owner_username TEXT,
+            FOREIGN KEY(owner_username) REFERENCES user(username)
+        ) WITHOUT ROWID;
+        """,
+        """
+        CREATE TABLE sketchpad (
+            id TEXT NOT NULL PRIMARY KEY,
+            data TEXT NOT NULL,
+            source_id text,
+            relation_id text,
+            reference_id text,
+            upload_at text,
+            owner_username TEXT
+        ) WITHOUT ROWID;
+        """,
+        """
+        CREATE TABLE computed_cache (
+            id TEXT NOT NULL PRIMARY KEY,
+            type TEXT NOT NULL,
+            data TEXT NOT NULL
+        ) WITHOUT ROWID;
+        """,
+    ]
+    for query in queries:
+        await db.execute(query)
