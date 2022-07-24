@@ -16,6 +16,29 @@ from pydantic import BaseSettings
 from ..core import Portfolio, SketchPad
 from . import auth, data, models
 
+# ## PLAN FOR DIRECTORY STRUCTURE?
+
+# main.py (very short, just create app method, that registers everything)
+# pages.py, or is all the "browse-paths"
+# components.py or is a bunch of {api}/name
+# api.py or is the actual api
+# data.py or is the actual database creation, and raw object models
+# aut.py the auth stuff
+# settings.py the settings for the app
+
+
+# NOTE: The client API (parent sketch library), will reference in code, the component API,
+#  in order to embed capability in jupyter notebooks or streamlit apps (figure out how to embed)
+# the component into the client.
+# client library, can make HTML blocks, with appropriate "wrapping" (div context wrapper, some sizing stuff, basic composition)
+#  -> and then render those or embed them into the client [[ Important to render with a streamlit example for demo purposes ]]
+# https://docs.streamlit.io/library/components/create
+# Rendering Python objects having methods that output HTML, such as IPython __repr_html__.
+
+# components have a 'rapid render' mode (use another request lifecycle to get data) or a "synchronous" -> oh,
+# async or sync mode.. Async mode includes client code in JS for query of data later.
+# offline / online mode could be useful, to give things like "always on" or "self-updating" ones.
+
 
 # https://fastapi.tiangolo.com/advanced/settings/
 class Settings(BaseSettings):
@@ -113,8 +136,12 @@ async def root(
     request: Request, user: auth.User = Depends(auth.get_current_active_user)
 ):
     return templates.TemplateResponse(
-        "root.html",
-        {"request": request, "sketchcount": len(app.portfolio.sketchpads)},
+        "page/root.html",
+        {
+            "request": request,
+            "sketchcount": len(app.portfolio.sketchpads),
+            "user": user,
+        },
     )
 
 
@@ -166,3 +193,4 @@ async def api(sketchpad: models.SketchPad, token: str | None = Cookie(default=No
     sketchpad_dict = sketchpad.dict()
     sp = SketchPad.from_dict(sketchpad_dict)
     app.portfolio.add_sketchpad(sp)
+    return {"status": "ok"}

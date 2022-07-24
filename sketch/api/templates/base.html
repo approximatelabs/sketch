@@ -1,3 +1,5 @@
+{% from "macro/header.html" import header with context %}
+
 <!DOCTYPE html>
 
 <html lang="en">
@@ -13,7 +15,10 @@
 </head>
 
 <body>
-    {% block body %}{% endblock %}
+    <div class="flex flex-col h-screen">
+        {{ header() }}
+        {% block body %}{% endblock %}
+    </div>
 
     {% if DEBUG %}
     <!-- Hot reload script -->
