@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 # TODO: consider throwing this whole style away, use a tool.
 
-# TODO: put this into an env var or something
+# TODO: put this into an env var or something (env or db? which is better?)
 SECRET_KEY = "b684803ea47c9d287a18559418fd531f6e640a5c3f714f7b10b8a0904f7a3b85"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
