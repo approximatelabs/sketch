@@ -6,7 +6,7 @@ import arel
 import numpy as np
 import pandas as pd
 from databases import Database
-from fastapi import Cookie, Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -135,11 +135,13 @@ async def http_exception_handler(request, exc):
 async def root(
     request: Request, user: auth.User = Depends(auth.get_current_active_user)
 ):
+    # TODO: change this count to a simpler count query
+    pf = await data.get_portfolio(database, user.username)
     return templates.TemplateResponse(
         "page/root.html",
         {
             "request": request,
-            "sketchcount": len(app.portfolio.sketchpads),
+            "sketchcount": len(pf.sketchpads),
             "user": user,
         },
     )
@@ -160,11 +162,15 @@ async def login_for_access_token(
 
 
 @app.get("/cardinality_histogram")
-async def cardhisto(request: Request):
+async def cardhisto(
+    request: Request, user: auth.User = Depends(auth.get_current_active_user)
+):
+    pf = await data.get_portfolio(database, user.username)
+
     cards = np.array(
         [
             x.get_sketchdata_by_name("HyperLogLog").count()
-            for x in app.portfolio.sketchpads.values()
+            for x in pf.sketchpads.values()
         ]
     )
     # hist, bins = np.histogram(cards)
@@ -172,13 +178,13 @@ async def cardhisto(request: Request):
     bins = np.geomspace(1, upper, num=100)
     hist, *_ = np.histogram(cards, bins=bins)
     # should be geometric mean...
-    data = pd.DataFrame({"x": bins[:-1], "x1": bins[1:], "y": hist})
+    df = pd.DataFrame({"x": bins[:-1], "x1": bins[1:], "y": hist})
     chart = (
-        alt.Chart(data)
+        alt.Chart(df)
         .mark_bar()
         .encode(
             x=alt.X("x", title="Unique Count", scale=alt.Scale(type="log")),
-            x2="x2",
+            # x2="x2",
             # y=alt.Y("y", title="Number", scale=alt.Scale(type="log")),
             y=alt.Y("y", title="Count"),
         )
@@ -189,8 +195,11 @@ async def cardhisto(request: Request):
 
 @externalApiApp.post("/")
 # The request to send a sketchpad to our services
-async def api(sketchpad: models.SketchPad, token: str | None = Cookie(default=None)):
-    sketchpad_dict = sketchpad.dict()
-    sp = SketchPad.from_dict(sketchpad_dict)
-    app.portfolio.add_sketchpad(sp)
+async def api(
+    sketchpad: models.SketchPad, user: auth.User = Depends(auth.get_current_active_user)
+):
+    # Ensure sketchpad parses correctly
+    SketchPad.from_dict(sketchpad.dict())
+    # add the pydantic sketchpad directly to database
+    await data.add_sketchpad(database, user.username, sketchpad)
     return {"status": "ok"}

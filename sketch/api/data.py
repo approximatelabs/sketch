@@ -1,4 +1,10 @@
+import json
+
 from databases import Database
+from fastapi.encoders import jsonable_encoder
+
+from ..core import Portfolio, SketchPad
+from . import models
 
 # database = Database("sqlite:///test.db")
 
@@ -39,6 +45,7 @@ def migration(version: int):
     def decorator(func):
         async def run_migration(db: Database, db_version: int):
             if db_version is None or db_version < version:
+                print("Running migration", version)
                 await func(db)
                 await set_version(db, version)
 
@@ -80,23 +87,115 @@ async def migration_1(db: Database):
         ) WITHOUT ROWID;
         """,
         """
+        CREATE TABLE source (
+            id TEXT NOT NULL PRIMARY KEY,
+            data TEXT NOT NULL
+        ) WITHOUT ROWID;
+        """,
+        """
+        CREATE TABLE relation (
+            id TEXT NOT NULL PRIMARY KEY,
+            data TEXT NOT NULL
+        ) WITHOUT ROWID;
+        """,
+        """
+        CREATE TABLE reference (
+            id TEXT NOT NULL PRIMARY KEY,
+            data TEXT NOT NULL
+        ) WITHOUT ROWID;
+        """,
+        """
         CREATE TABLE sketchpad (
             id TEXT NOT NULL PRIMARY KEY,
             data TEXT NOT NULL,
-            source_id text,
-            relation_id text,
-            reference_id text,
-            upload_at text,
-            owner_username TEXT
+            source_id TEXT,
+            relation_id TEXT,
+            reference_id TEXT,
+            upload_at TEXT,
+            owner_username TEXT,
+            FOREIGN KEY(source_id) REFERENCES source(id),
+            FOREIGN KEY(relation_id) REFERENCES relation(id),
+            FOREIGN KEY(reference_id) REFERENCES reference(id),
+            FOREIGN KEY(owner_username) REFERENCES user(username)
         ) WITHOUT ROWID;
         """,
         """
         CREATE TABLE computed_cache (
             id TEXT NOT NULL PRIMARY KEY,
             type TEXT NOT NULL,
-            data TEXT NOT NULL
+            data TEXT NOT NULL,
+            FOREIGN KEY(id) REFERENCES sketchpad(id)
         ) WITHOUT ROWID;
         """,
     ]
     for query in queries:
         await db.execute(query)
+
+
+async def add_sketchpad(db: Database, user: str, sketchpad: models.SketchPad):
+    query = """
+        INSERT OR IGNORE INTO sketchpad (id, data, source_id, relation_id, reference_id, upload_at, owner_username)
+        VALUES (:id, :data, :source_id, :relation_id, :reference_id, CURRENT_TIMESTAMP, :owner_username);
+    """
+    async with db.transaction():
+        if sketchpad.metadata.source is not None:
+            await ensure_source(
+                db, sketchpad.metadata.source.id, sketchpad.metadata.source.data
+            )
+        if sketchpad.metadata.relation is not None:
+            await ensure_relation(
+                db, sketchpad.metadata.relation.id, sketchpad.metadata.relation.data
+            )
+        if sketchpad.metadata.reference is not None:
+            await ensure_reference(
+                db, sketchpad.metadata.reference.id, sketchpad.metadata.reference.data
+            )
+        await db.execute(
+            query,
+            values={
+                "owner_username": user,
+                "id": sketchpad.metadata.id,
+                "data": sketchpad.json(),
+                "source_id": sketchpad.metadata.source.id
+                if sketchpad.metadata.source is not None
+                else None,
+                "relation_id": sketchpad.metadata.relation.id
+                if sketchpad.metadata.relation is not None
+                else None,
+                "reference_id": sketchpad.metadata.reference.id
+                if sketchpad.metadata.reference is not None
+                else None,
+            },
+        )
+
+
+async def get_sketchpads(db: Database, user: str = None):
+    query = """
+        SELECT data
+        FROM sketchpad
+        WHERE owner_username = :user
+        ORDER BY upload_at DESC;
+    """
+    async for d, in db.iterate(query, values={"user": user}):
+        yield SketchPad.from_dict(json.loads(d))
+
+
+# this is the operation to get a collection of sketchpads (matching conditions)
+async def get_portfolio(db: Database, user: str = None):
+    sketchpads = [d async for d in get_sketchpads(db, user)]
+    return Portfolio(sketchpads=sketchpads)
+
+
+async def ensure_source(db: Database, id: str, data: dict):
+    query = "INSERT OR IGNORE INTO source (id, data) VALUES (:id, :data);"
+    await db.execute(query, values={"id": id, "data": jsonable_encoder(data)})
+
+
+async def ensure_relation(db: Database, id: str, data: dict):
+    query = "INSERT OR IGNORE INTO relation (id, data) VALUES (:id, :data);"
+    await db.execute(query, values={"id": id, "data": jsonable_encoder(data)})
+
+
+async def ensure_reference(db: Database, id: str, data: dict):
+    query = "INSERT OR IGNORE INTO reference (id, data) VALUES (:id, :data);"
+    await db.execute(query, values={"id": id, "data": jsonable_encoder(data)})

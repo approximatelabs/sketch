@@ -1,4 +1,3 @@
-import base64
 import datetime
 import heapq
 import logging
@@ -6,10 +5,14 @@ import sqlite3
 import uuid
 
 import pandas as pd
-
-import sketch
+import requests
 
 from .sketches import SketchBase
+
+# TODO: These object models are possibly different than the ones in api models
+# and those are different than the ones in data models... need to rectify.
+# either use a single source of truth, or have good robust tests.
+# -- These feel more useful for the client, utility methods
 
 
 class SketchPad:
@@ -73,6 +76,9 @@ class SketchPad:
         return sp
 
 
+# TODO: Add a "row-iterator" style, that builds sketchpads from a row-iterator
+
+
 class Portfolio:
     def __init__(self, sketchpads=None):
         self.sketchpads = {sp.id: sp for sp in (sketchpads or [])}
@@ -114,7 +120,6 @@ class Portfolio:
             "SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name;", conn
         )
         logging.info(f"Found {len(tables)} tables in file {sqlite_db_path}")
-        all_tables = {}
         for i, table in enumerate(tables.name):
             df = pd.read_sql(f"SELECT * from '{table}'", conn)
             df.attrs |= {"table_name": table, "source": sqlite_db_path}
@@ -128,3 +133,16 @@ class Portfolio:
             heapq.heappush(scores, (score, sp.id))
         top_n = heapq.nlargest(n, scores, key=lambda x: x[0])
         return [(s, self.sketchpads[i]) for s, i in top_n]
+
+    def upload(self, url, apiKey=None):
+        # Try and get URL from a global state variable
+        for skechpad in self.sketchpads.values():
+            response = requests.post(
+                url,
+                json=skechpad.to_dict(),
+                headers={"Authorization": f"Bearer {apiKey}"},
+            )
+            if response.status_code != 200:
+                logging.error(f"Failed to upload sketchpad {skechpad.id}")
+                logging.error(response.text)
+                return False
