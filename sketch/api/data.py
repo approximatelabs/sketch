@@ -1,7 +1,6 @@
 import json
 
 from databases import Database
-from fastapi.encoders import jsonable_encoder
 
 from ..core import Portfolio, SketchPad
 from . import models
@@ -170,14 +169,40 @@ async def add_sketchpad(db: Database, user: str, sketchpad: models.SketchPad):
         )
 
 
+# Right now, this just returns most recent "fully qualified"
+# sketchpads, not a proper full list...
 async def get_sketchpads(db: Database, user: str = None):
     query = """
-        SELECT data
+        SELECT
+            data
         FROM sketchpad
-        WHERE owner_username = :user
+        WHERE 
+            (owner_username = :user) 
+            and (NOT reference_id IS NULL)
+            and (NOT relation_id IS NULL)
+            and (NOT source_id IS NULL)
+        GROUP BY
+            source_id, relation_id, reference_id, owner_username
+        HAVING upload_at = MIN(upload_at)
         ORDER BY upload_at DESC;
     """
     async for d, in db.iterate(query, values={"user": user}):
+        yield SketchPad.from_dict(json.loads(d))
+
+
+async def get_sketchpads_by_id(db: Database, sketchpad_ids, user: str = None):
+    query = f"""
+        SELECT
+            data
+        FROM sketchpad
+        WHERE 
+            (owner_username = :user)
+            and 
+            (id IN ({','.join([f':{i}' for i in range(len(sketchpad_ids))])}))
+    """
+    async for d, in db.iterate(
+        query, values={"user": user, **{str(i): d for i, d in enumerate(sketchpad_ids)}}
+    ):
         yield SketchPad.from_dict(json.loads(d))
 
 
@@ -187,16 +212,16 @@ async def get_portfolio(db: Database, user: str = None):
     return Portfolio(sketchpads=sketchpads)
 
 
-async def ensure_source(db: Database, id: str, data: dict):
+async def ensure_source(db: Database, uid: str, data: dict):
     query = "INSERT OR IGNORE INTO source (id, data) VALUES (:id, :data);"
-    await db.execute(query, values={"id": id, "data": jsonable_encoder(data)})
+    await db.execute(query, values={"id": uid, "data": json.dumps(data)})
 
 
-async def ensure_relation(db: Database, id: str, data: dict):
+async def ensure_relation(db: Database, uid: str, data: dict):
     query = "INSERT OR IGNORE INTO relation (id, data) VALUES (:id, :data);"
-    await db.execute(query, values={"id": id, "data": jsonable_encoder(data)})
+    await db.execute(query, values={"id": uid, "data": json.dumps(data)})
 
 
-async def ensure_reference(db: Database, id: str, data: dict):
+async def ensure_reference(db: Database, uid: str, data: dict):
     query = "INSERT OR IGNORE INTO reference (id, data) VALUES (:id, :data);"
-    await db.execute(query, values={"id": id, "data": jsonable_encoder(data)})
+    await db.execute(query, values={"id": uid, "data": json.dumps(data)})

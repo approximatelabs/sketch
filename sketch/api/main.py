@@ -1,5 +1,8 @@
+import asyncio
 import os
 import time
+from functools import partial
+from typing import List
 
 import altair as alt
 import arel
@@ -189,9 +192,9 @@ async def cardhisto(request: Request, user: auth.User = Depends(auth.get_browser
     return chart.to_dict()
 
 
-@externalApiApp.post("/")
+@externalApiApp.post("/upload_sketchpad")
 # The request to send a sketchpad to our services
-async def api(
+async def upload_sketchpad(
     sketchpad: models.SketchPad, user: auth.User = Depends(auth.get_token_user)
 ):
     # Ensure sketchpad parses correctly
@@ -199,3 +202,40 @@ async def api(
     # add the pydantic sketchpad directly to database
     await data.add_sketchpad(database, user.username, sketchpad)
     return {"status": "ok"}
+
+
+@externalApiApp.post("/upload_portfolio")
+async def upload_portfolio(
+    sketchpads: List[models.SketchPad], user: auth.User = Depends(auth.get_token_user)
+):
+    # Ensure sketchpad parses correctly
+    for sketchpad in sketchpads:
+        SketchPad.from_dict(sketchpad.dict())
+    # add the pydantic sketchpad directly to database
+    add_sketchpad = partial(data.add_sketchpad, database, user.username)
+    await asyncio.gather(*map(add_sketchpad, sketchpads))
+    return {"status": "ok"}
+
+
+@externalApiApp.get("/get_approx_best_joins")
+async def get_approx_best_joins(
+    sketchpad_ids: List[str], user: auth.User = Depends(auth.get_token_user)
+):
+    pf = await data.get_portfolio(database, user.username)
+    pf = pf.get_approx_pk_sketchpads()
+    myspads = [
+        x
+        async for x in data.get_sketchpads_by_id(database, sketchpad_ids, user.username)
+    ]
+    possibilities = []
+    for sketch in myspads:
+        high_overlaps = pf.closest_overlap(sketch)
+        for score, sketchpad in high_overlaps:
+            possibilities.append(
+                {
+                    "score": score,
+                    "left_sketchpad": sketch.to_dict(),
+                    "right_sketchpad": sketchpad.to_dict(),
+                }
+            )
+    return sorted(possibilities, key=lambda x: x["score"], reverse=True)[:5]
