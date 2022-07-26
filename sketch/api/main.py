@@ -132,9 +132,7 @@ async def http_exception_handler(request, exc):
 
 
 @app.get("/")
-async def root(
-    request: Request, user: auth.User = Depends(auth.get_current_active_user)
-):
+async def root(request: Request, user: auth.User = Depends(auth.get_browser_user)):
     # TODO: change this count to a simpler count query
     pf = await data.get_portfolio(database, user.username)
     return templates.TemplateResponse(
@@ -148,9 +146,7 @@ async def root(
 
 
 @app.get("/apple")
-async def apple(
-    request: Request, user: auth.User = Depends(auth.get_current_active_user)
-):
+async def apple(request: Request, user: auth.User = Depends(auth.get_browser_user)):
     return "🍎"
 
 
@@ -162,9 +158,7 @@ async def login_for_access_token(
 
 
 @app.get("/cardinality_histogram")
-async def cardhisto(
-    request: Request, user: auth.User = Depends(auth.get_current_active_user)
-):
+async def cardhisto(request: Request, user: auth.User = Depends(auth.get_browser_user)):
     pf = await data.get_portfolio(database, user.username)
 
     cards = np.array(
@@ -183,7 +177,9 @@ async def cardhisto(
         alt.Chart(df)
         .mark_bar()
         .encode(
-            x=alt.X("x", title="Unique Count", scale=alt.Scale(type="log")),
+            x=alt.X(
+                "x", title="Unique Count", scale=alt.Scale(type="log", domainMin=1)
+            ),
             # x2="x2",
             # y=alt.Y("y", title="Number", scale=alt.Scale(type="log")),
             y=alt.Y("y", title="Count"),
@@ -196,7 +192,7 @@ async def cardhisto(
 @externalApiApp.post("/")
 # The request to send a sketchpad to our services
 async def api(
-    sketchpad: models.SketchPad, user: auth.User = Depends(auth.get_current_active_user)
+    sketchpad: models.SketchPad, user: auth.User = Depends(auth.get_token_user)
 ):
     # Ensure sketchpad parses correctly
     SketchPad.from_dict(sketchpad.dict())

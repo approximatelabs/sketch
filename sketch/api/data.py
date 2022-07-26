@@ -6,6 +6,7 @@ from fastapi.encoders import jsonable_encoder
 from ..core import Portfolio, SketchPad
 from . import models
 
+# https://www.encode.io/databases/database_queries/
 # database = Database("sqlite:///test.db")
 
 MIGRATION_VERSION_TABLE = "mochaver"
