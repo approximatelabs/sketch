@@ -188,6 +188,20 @@ class Portfolio:
         top_n = heapq.nlargest(n, scores, key=lambda x: x[0])
         return [(s, self.sketchpads[i]) for s, i in top_n]
 
+    def find_joinables_html(self, url=None, apiKey=None):
+        self.upload(url=url, apiKey=apiKey)
+        # now get the matching
+        resp = requests.get(
+            (url or "http://localhost:8000/api") + "/component/get_approx_best_joins",
+            json=list(self.sketchpads.keys()),
+            headers={"Authorization": f"Bearer {apiKey}"},
+        )
+        if resp.status_code != 200:
+            raise Exception(f"Error getting joinables: {resp.text}")
+        from IPython.core.display import HTML, display
+
+        display(HTML(resp.text))
+
     def find_joinables(self, url=None, apiKey=None):
         self.upload(url=url, apiKey=apiKey)
         # now get the matching

@@ -1,0 +1,62 @@
+{% macro reference_card(sketchpad) -%}
+
+<!-- Flexbox for card, full width, rounded with shadow -->
+<div class="flex flex-row items-baseline shadow-lg justify-center bg-slate-50">
+    <div class="grow flex flex-col px-4">
+        <div class="">
+            <span class="text-sm text-bold text-blue-500">
+                Source
+            </span>
+            <a class="text-l font-bold" href="/source/{{ sketchpad.metadata['source']['data']['id'] }}">
+                {{ sketchpad.metadata['source']['data']['sqlite'] }}
+            </a>
+        </div>
+        <div class="">
+            <span class="text-sm text-bold text-blue-500">
+                Relation
+            </span>
+            <a class="text-l font-bold" href="/source/{{ sketchpad.metadata['relation']['data']['id'] }}">
+                {{ sketchpad.metadata['relation']['data']['table'] }}
+            </a>
+        </div>
+        <div class="">
+            <span class="text-sm text-bold text-blue-500">
+                Reference
+            </span>
+            <a class="text-xl font-bold underline"
+                href="/reference/{{ sketchpad.metadata['reference']['data']['id'] }}">
+                {{ sketchpad.metadata['reference']['data']['column'] }}
+            </a>
+        </div>
+    </div>
+    <div class="flex flex-col items-end px-4">
+        <p class="text-xl">
+            <span class="text-sm text-cyan-500">
+                Est #Uniques:
+            </span>
+            {{ sketchpad.get_sketchdata_by_name("HyperLogLog").count() | round | int }}
+        </p>
+        <p class="text-xl">
+            <span class="text-sm text-cyan-500">
+                Rows:
+            </span>
+            {{ sketchpad.get_sketchdata_by_name("Rows") | int }}
+        </p>
+    </div>
+</div>
+
+{%- endmacro %}
+
+{% macro reference_list(portfolio) -%}
+
+<div class="flex justify-center items-center">
+    <ul class="grow">
+        {% for sketchpad in portfolio.sketchpads.values() %}
+        <li class="p-2">
+            {{ reference_card(sketchpad) }}
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+
+{%- endmacro %}

@@ -1,0 +1,12 @@
+{% from "macro/reference.html" import reference_list with context %}
+
+{% extends "base.html" %}
+
+{% block title %} Landing Page! {% endblock %}
+
+{% block body %}
+
+<h1 class="text-4xl font-bold underline"> All References </h1>
+{{ reference_list(portfolio) }}
+
+{% endblock %}

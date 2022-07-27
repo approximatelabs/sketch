@@ -134,9 +134,29 @@ async def http_exception_handler(request, exc):
     raise exc
 
 
+@app.get("/references")
+async def references(
+    request: Request, user: auth.User = Depends(auth.get_browser_user)
+):
+    # TODO: change this count to a simpler count query
+    pf = await data.get_portfolio(database, user.username)
+    return templates.TemplateResponse(
+        "page/references.html",
+        {
+            "request": request,
+            "user": user,
+            "portfolio": pf,
+        },
+    )
+
+
+@app.get("/apple")
+async def apple(request: Request, user: auth.User = Depends(auth.get_browser_user)):
+    return "🍎"
+
+
 @app.get("/")
 async def root(request: Request, user: auth.User = Depends(auth.get_browser_user)):
-    # TODO: change this count to a simpler count query
     pf = await data.get_portfolio(database, user.username)
     return templates.TemplateResponse(
         "page/root.html",
@@ -146,11 +166,6 @@ async def root(request: Request, user: auth.User = Depends(auth.get_browser_user
             "user": user,
         },
     )
-
-
-@app.get("/apple")
-async def apple(request: Request, user: auth.User = Depends(auth.get_browser_user)):
-    return "🍎"
 
 
 @app.post("/token")
@@ -239,3 +254,16 @@ async def get_approx_best_joins(
                 }
             )
     return sorted(possibilities, key=lambda x: x["score"], reverse=True)[:5]
+
+
+@externalApiApp.get("/component/get_approx_best_joins")
+async def get_approx_best_joins(
+    request: Request, best_joins=Depends(get_approx_best_joins)
+):
+    pf = Portfolio(
+        sketchpads=[SketchPad.from_dict(x["right_sketchpad"]) for x in best_joins]
+    )
+    return templates.TemplateResponse(
+        "component/references.html",
+        {"request": request, "portfolio": pf},
+    )

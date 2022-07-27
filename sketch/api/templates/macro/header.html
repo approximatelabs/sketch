@@ -7,19 +7,31 @@
                 <img src="{{ url_for('static', path='approximatelabs-logo.png') }}" alt="Logo" class="w-8 h-8">
                 <span class="ml-2 text-lg font-semibold text-gray-800">Sketch</span>
             </a>
-            {% if user %}
-            <a href="/logout" class="flex">
-                <div class="flex">
-                    {{ user.first_name }} Logout
-                </div>
-            </a>
-            {% else %}
-            <a href="/login" class="flex">
-                <div class="flex">
-                    Login
-                </div>
-            </a>
-            {% endif %}
+            <div class="flex px-4">
+                {% if user %}
+                <a href="/references" class="flex px-4">
+                    <div class="flex">
+                        <span class="">References</span>
+                    </div>
+                </a>
+                <a href="/profile" class="flex px-4">
+                    <div class="flex">
+                        <span class="text-gray-600">{{ user.username }}</span>
+                    </div>
+                </a>
+                <a href="/logout" class="flex px-4">
+                    <div class="flex">
+                        {{ user.first_name }} Logout
+                    </div>
+                </a>
+                {% else %}
+                <a href="/login" class="flex px-4">
+                    <div class="flex">
+                        Login
+                    </div>
+                </a>
+                {% endif %}
+            </div>
         </div>
     </nav>
 </header>

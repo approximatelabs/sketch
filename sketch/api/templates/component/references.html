@@ -1,0 +1,11 @@
+{% from "macro/reference.html" import reference_list with context %}
+
+{% extends "component_base.html" %}
+
+{% block title %} Landing Page! {% endblock %}
+
+{% block body %}
+
+{{ reference_list(portfolio) }}
+
+{% endblock %}
