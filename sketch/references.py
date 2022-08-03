@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 from functools import cache
 from typing import Dict
 
@@ -57,18 +58,14 @@ class Reference:
 # TODO: make the subclasses of Reference have smarter args
 # possibly make them a dataclass
 
-
+# TODO: eventually consider a Sqlite Query reference (full tuple)
+# might replace this entire single column concept
 class SqliteColumn(Reference):
-    def __init__(self, path, column, table=None, query=None, friendly_name=None):
-        if table is None:
-            assert query is not None
-        if query is None:
-            query = f"SELECT {column} FROM {table}"
+    def __init__(self, path, query, column, friendly_name=None):
         data = {
             "path": path,
             "column": column,
             "query": query,
-            "table": table,
             "friendly_name": friendly_name,
         }
         super().__init__(**data)
@@ -80,35 +77,24 @@ class SqliteColumn(Reference):
         return base
 
     def to_pyscript(self):
-        commands = []
+        commands = ["import os", "import pandas as pd", "import sqlite3"]
         if self.data["path"].startswith("http"):
             # assuming this is a downloadable path
             commands.append(
-                f"""import os; os.system("wget {self.data['path']} -O ~/.cache/sketch/{self.id}")"""
-            )  # noqa
-            localpath = f"~/.cache/sketch/{self.id}"
+                f"""os.system("wget -nc '{self.data['path']}' -P ~/.cache/sketch/")"""  # noqa
+            )
+            base = os.path.split(self.data["path"])[1]
+            localpath = f"~/.cache/sketch/{base}"
         else:
             localpath = self.data["path"]
-        commands.append(
-            f"""
-            conn = sqlite3.connect({localpath})
-        """
-        )
-        commands.append(
-            f"""
-            df = pd.read_sql_query({self.data['query']}, conn)
-        """
-        )
-        commands.append(
-            f"""
-            series = df[{self.data['column']}]
-        """
-        )
+        commands.append(f"conn = sqlite3.connect('{localpath}')")
+        commands.append(f"df = pd.read_sql_query('{self.data['query']}', conn)")
+        commands.append(f"df = df['{self.data['column']}']")
         return "\n".join(commands)
 
 
 class PandasDataframeColumn(Reference):
-    def __init__(self, dfname, column, **dfextra):
+    def __init__(self, column, dfname, **dfextra):
         super().__init__(dfname=dfname, column=column, extra=dfextra)
 
     def to_searchable_string(self):
@@ -118,14 +104,6 @@ class PandasDataframeColumn(Reference):
 
     def to_pyscript(self):
         commands = []
-        commands.append(
-            f"""
-            df = {self.data["dfname"]}
-        """
-        )
-        commands.append(
-            f"""
-            series = df[{self.data["column"]}]
-        """
-        )
+        commands.append(f'df = {self.data["dfname"]}')
+        commands.append(f'df = df[["{self.data["column"]}"]]')
         return "\n".join(commands)

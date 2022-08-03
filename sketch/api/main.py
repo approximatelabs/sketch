@@ -138,7 +138,6 @@ async def http_exception_handler(request, exc):
 async def references(
     request: Request, user: auth.User = Depends(auth.get_browser_user)
 ):
-    # TODO: change this count to a simpler count query
     pf = await data.get_portfolio(database, user.username)
     return templates.TemplateResponse(
         "page/references.html",
@@ -213,6 +212,7 @@ async def upload_sketchpad(
     sketchpad: models.SketchPad, user: auth.User = Depends(auth.get_token_user)
 ):
     # Ensure sketchpad parses correctly
+    print(sketchpad.dict())
     SketchPad.from_dict(sketchpad.dict())
     # add the pydantic sketchpad directly to database
     await data.add_sketchpad(database, user.username, sketchpad)

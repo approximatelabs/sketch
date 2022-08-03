@@ -3,6 +3,7 @@ import json
 from databases import Database
 
 from ..core import Portfolio, SketchPad
+from ..references import Reference
 from . import models
 
 # https://www.encode.io/databases/database_queries/
@@ -87,34 +88,19 @@ async def migration_1(db: Database):
         ) WITHOUT ROWID;
         """,
         """
-        CREATE TABLE source (
-            id TEXT NOT NULL PRIMARY KEY,
-            data TEXT NOT NULL
-        ) WITHOUT ROWID;
-        """,
-        """
-        CREATE TABLE relation (
-            id TEXT NOT NULL PRIMARY KEY,
-            data TEXT NOT NULL
-        ) WITHOUT ROWID;
-        """,
-        """
         CREATE TABLE reference (
             id TEXT NOT NULL PRIMARY KEY,
-            data TEXT NOT NULL
+            data TEXT NOT NULL,
+            type TEXT NOT NULL
         ) WITHOUT ROWID;
         """,
         """
         CREATE TABLE sketchpad (
             id TEXT NOT NULL PRIMARY KEY,
             data TEXT NOT NULL,
-            source_id TEXT,
-            relation_id TEXT,
             reference_id TEXT,
             upload_at TEXT,
             owner_username TEXT,
-            FOREIGN KEY(source_id) REFERENCES source(id),
-            FOREIGN KEY(relation_id) REFERENCES relation(id),
             FOREIGN KEY(reference_id) REFERENCES reference(id),
             FOREIGN KEY(owner_username) REFERENCES user(username)
         ) WITHOUT ROWID;
@@ -134,37 +120,18 @@ async def migration_1(db: Database):
 
 async def add_sketchpad(db: Database, user: str, sketchpad: models.SketchPad):
     query = """
-        INSERT OR IGNORE INTO sketchpad (id, data, source_id, relation_id, reference_id, upload_at, owner_username)
+        INSERT OR IGNORE INTO sketchpad (id, data, reference_id, upload_at, owner_username)
         VALUES (:id, :data, :source_id, :relation_id, :reference_id, CURRENT_TIMESTAMP, :owner_username);
     """
     async with db.transaction():
-        if sketchpad.metadata.source is not None:
-            await ensure_source(
-                db, sketchpad.metadata.source.id, sketchpad.metadata.source.data
-            )
-        if sketchpad.metadata.relation is not None:
-            await ensure_relation(
-                db, sketchpad.metadata.relation.id, sketchpad.metadata.relation.data
-            )
-        if sketchpad.metadata.reference is not None:
-            await ensure_reference(
-                db, sketchpad.metadata.reference.id, sketchpad.metadata.reference.data
-            )
+        await ensure_reference(db, sketchpad.reference)
         await db.execute(
             query,
             values={
                 "owner_username": user,
                 "id": sketchpad.metadata.id,
                 "data": sketchpad.json(),
-                "source_id": sketchpad.metadata.source.id
-                if sketchpad.metadata.source is not None
-                else None,
-                "relation_id": sketchpad.metadata.relation.id
-                if sketchpad.metadata.relation is not None
-                else None,
-                "reference_id": sketchpad.metadata.reference.id
-                if sketchpad.metadata.reference is not None
-                else None,
+                "reference_id": sketchpad.reference.id,
             },
         )
 
@@ -179,10 +146,8 @@ async def get_sketchpads(db: Database, user: str = None):
         WHERE 
             (owner_username = :user) 
             and (NOT reference_id IS NULL)
-            and (NOT relation_id IS NULL)
-            and (NOT source_id IS NULL)
         GROUP BY
-            source_id, relation_id, reference_id, owner_username
+            reference_id, owner_username
         HAVING upload_at = MIN(upload_at)
         ORDER BY upload_at DESC;
     """
@@ -212,16 +177,10 @@ async def get_portfolio(db: Database, user: str = None):
     return Portfolio(sketchpads=sketchpads)
 
 
-async def ensure_source(db: Database, uid: str, data: dict):
-    query = "INSERT OR IGNORE INTO source (id, data) VALUES (:id, :data);"
-    await db.execute(query, values={"id": uid, "data": json.dumps(data)})
-
-
-async def ensure_relation(db: Database, uid: str, data: dict):
-    query = "INSERT OR IGNORE INTO relation (id, data) VALUES (:id, :data);"
-    await db.execute(query, values={"id": uid, "data": json.dumps(data)})
-
-
-async def ensure_reference(db: Database, uid: str, data: dict):
-    query = "INSERT OR IGNORE INTO reference (id, data) VALUES (:id, :data);"
-    await db.execute(query, values={"id": uid, "data": json.dumps(data)})
+async def ensure_reference(db: Database, reference: Reference):
+    query = (
+        "INSERT OR IGNORE INTO reference (id, data, type) VALUES (:id, :data, :type);"
+    )
+    print(reference.dict())
+    # data is a dict, not a string right now...
+    await db.execute(query, values=reference.dict())

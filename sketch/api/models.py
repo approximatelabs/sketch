@@ -11,22 +11,10 @@ from pydantic import BaseModel
 # from ..core import SketchPad
 
 
-# TODO: Consider validation on hash(data) == id
-class SourceMetadata(BaseModel):
+class Reference(BaseModel):
     id: str
     data: Dict[str, Any]
-
-
-# TODO: Consider validation on hash(data) == id
-class RelationMetadata(BaseModel):
-    id: str
-    data: Dict[str, Any]
-
-
-# TODO: Consider validation on hash(data) == id
-class ReferenceMetadata(BaseModel):
-    id: str
-    data: Dict[str, Any]
+    type: str
 
 
 class SketchPadMetadata(BaseModel):
@@ -34,9 +22,6 @@ class SketchPadMetadata(BaseModel):
     creation_start: str
     creation_end: str
     stream_id: str | None = None
-    source: SourceMetadata | None = None
-    relation: RelationMetadata | None = None
-    reference: ReferenceMetadata | None = None
 
 
 class Sketch(BaseModel):
@@ -47,5 +32,6 @@ class Sketch(BaseModel):
 class SketchPad(BaseModel):
     version: str
     metadata: SketchPadMetadata
+    reference: Reference
     sketches: List[Sketch]
     context: Dict[str, Any]

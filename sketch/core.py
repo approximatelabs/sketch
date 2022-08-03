@@ -1,6 +1,7 @@
 import datetime
 import heapq
 import logging
+import os
 import sqlite3
 import uuid
 
@@ -9,6 +10,8 @@ import requests
 
 from .references import PandasDataframeColumn, Reference, SqliteColumn
 from .sketches import SketchBase
+
+SKETCHCACHE = "~/.cache/sketch/"
 
 # TODO: These object models are possibly different than the ones in api models
 # and those are different than the ones in data models... need to rectify.
@@ -71,8 +74,8 @@ class SketchPad:
         }
 
     @classmethod
-    def from_series(cls, series, reference):
-        sp = cls(reference, initalize_sketches=False)
+    def from_series(cls, series: pd.Series, reference: Reference) -> "SketchPad":
+        sp = cls(reference, initialize_sketches=False)
         for skcls in cls.sketch_classes:
             sp.sketches.append(skcls.from_series(series))
         sp.metadata["creation_end"] = datetime.datetime.utcnow().isoformat()
@@ -95,13 +98,61 @@ class Portfolio:
         self.sketchpads = {sp.id: sp for sp in (sketchpads or [])}
 
     @classmethod
-    def from_dataframe(cls, df):
-        return cls().add_dataframe(df)
+    def from_dataframe(cls, df, dfname="df"):
+        return cls().add_dataframe(df, dfname=dfname)
 
-    def add_dataframe(self, df):
+    def add_dataframe(self, df, dfname="df"):
         for col in df.columns:
-            sp = SketchPad.from_series(df[col])
+            reference = PandasDataframeColumn(dfname, col)
+            sp = SketchPad.from_series(df[col], reference)
             self.add_sketchpad(sp)
+        return self
+
+    @classmethod
+    def from_dataframes(cls, dfs):
+        return cls().add_dataframes(dfs)
+
+    def add_dataframes(self, dfs):
+        # in general, this method is poor because of name tracking
+        for df in dfs:
+            self.add_dataframe(df)
+        return self
+
+    @classmethod
+    def from_sqlite(cls, sqlite_db_path):
+        return cls().add_sqlite(sqlite_db_path)
+
+    def add_sqlite(self, sqlite_db_path):
+        if sqlite_db_path.startswith("http"):
+            os.system(f"wget -nc {sqlite_db_path} --directory-prefix={SKETCHCACHE} -q")
+            path = os.path.join(SKETCHCACHE, os.path.split(sqlite_db_path)[1])
+        else:
+            path = sqlite_db_path
+        conn = sqlite3.connect(path)
+        # TODO: Consider using a cursor to avoid the need for this
+        tables = pd.read_sql(
+            "SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name;", conn
+        )
+        logging.info(f"Found {len(tables)} tables in file {sqlite_db_path}")
+        for i, table in enumerate(tables.name):
+            for column in pd.read_sql(f"PRAGMA table_info({table})", conn).name:
+                reference = SqliteColumn(
+                    sqlite_db_path, f"SELECT {column} FROM {table}", column
+                )
+                # consider iterator here
+                sp = SketchPad.from_series(
+                    pd.read_sql(f"SELECT {column} FROM {table}", conn)[column],
+                    reference,
+                )
+                self.add_sketchpad(sp)
+        return self
+
+    @classmethod
+    def from_sketchpad(cls, sketchpad):
+        return cls().add_sketchpad(sketchpad)
+
+    def add_sketchpad(self, sketchpad):
+        self.sketchpads[sketchpad.id] = sketchpad
         return self
 
     def get_approx_pk_sketchpads(self):
@@ -114,39 +165,6 @@ class Portfolio:
             if uq > 0.97 * rows:
                 pf.add_sketchpad(sketchpad)
         return pf
-
-    @classmethod
-    def from_dataframes(cls, dfs):
-        return cls().add_dataframes(dfs)
-
-    def add_dataframes(self, dfs):
-        for df in dfs:
-            self.add_dataframe(df)
-        return self
-
-    @classmethod
-    def from_sketchpad(cls, sketchpad):
-        return cls().add_sketchpad(sketchpad)
-
-    def add_sketchpad(self, sketchpad):
-        self.sketchpads[sketchpad.id] = sketchpad
-        return self
-
-    @classmethod
-    def from_sqlite(cls, sqlite_db_path):
-        return cls().add_sqlite(sqlite_db_path)
-
-    def add_sqlite(self, sqlite_db_path):
-        conn = sqlite3.connect(sqlite_db_path)
-        tables = pd.read_sql(
-            "SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name;", conn
-        )
-        logging.info(f"Found {len(tables)} tables in file {sqlite_db_path}")
-        for i, table in enumerate(tables.name):
-            df = pd.read_sql(f"SELECT * from '{table}'", conn)
-            df.attrs |= {"table_name": table, "source": {"sqlite": sqlite_db_path}}
-            self.add_dataframe(df)
-        return self
 
     def closest_overlap(self, sketchpad, n=5):
         scores = []
