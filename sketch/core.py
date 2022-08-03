@@ -1,7 +1,5 @@
 import datetime
-import hashlib
 import heapq
-import json
 import logging
 import sqlite3
 import uuid
@@ -9,6 +7,7 @@ import uuid
 import pandas as pd
 import requests
 
+from .references import PandasDataframeColumn, Reference, SqliteColumn
 from .sketches import SketchBase
 
 # TODO: These object models are possibly different than the ones in api models
@@ -16,51 +15,23 @@ from .sketches import SketchBase
 # either use a single source of truth, or have good robust tests.
 # -- These feel more useful for the client, utility methods
 
-# TODO: consider if source, relation, and reference should be typed
-# right now, they are arbitrary objects, but maybe standardized is better
-
-
-def get_id_for_object(obj):
-    serialized = json.dumps(obj, sort_keys=True)
-    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
-
 
 class SketchPad:
     version = "0.0.1"
     sketches = SketchBase.all_sketches()
 
-    def __init__(self, context=None, source=None, relation=None, reference=None):
+    def __init__(self, reference, context=None):
         self.version = "0.0.1"
         self.id = str(uuid.uuid4())
         self.metadata = {
             "id": self.id,
             "creation_start": datetime.datetime.utcnow().isoformat(),
         }
-        if source:
-            self.metadata["source"] = {"id": get_id_for_object(source), "data": source}
-        if relation:
-            self.metadata["relation"] = {
-                "id": get_id_for_object(relation),
-                "data": relation,
-            }
-        if reference:
-            self.metadata["reference"] = {
-                "id": get_id_for_object(reference),
-                "data": reference,
-            }
+        self.reference = reference
         self.context = context or {}
         # TODO: consider alternate naming convention
         # so can do dictionary lookups
         self.sketches = []
-
-    @classmethod
-    def from_series(cls, series, **kwargs):
-        sp = cls(**kwargs)
-        for skcls in cls.sketches:
-            sp.sketches.append(skcls.from_series(series))
-        sp.metadata["creation_end"] = datetime.datetime.utcnow().isoformat()
-        sp.context["column_name"] = series.name
-        return sp
 
     def get_sketch_by_name(self, name):
         sketches = [sk for sk in self.sketches if sk.name == name]
@@ -83,34 +54,29 @@ class SketchPad:
         return {
             "version": self.version,
             "metadata": self.metadata,
+            "reference": self.reference.to_dict(),
             "sketches": [s.to_dict() for s in self.sketches],
             "context": self.context,
         }
 
     @classmethod
+    def from_series(cls, series, reference):
+        sp = cls(reference)
+        for skcls in cls.sketches:
+            sp.sketches.append(skcls.from_series(series))
+        sp.metadata["creation_end"] = datetime.datetime.utcnow().isoformat()
+        sp.context["column_name"] = series.name
+        return sp
+
+    @classmethod
     def from_dict(cls, data):
         assert data["version"] == cls.version
-        sp = cls()
+        sp = cls(Reference.from_dict(data["reference"]))
         sp.id = data["metadata"]["id"]
         sp.metadata = data["metadata"]
         sp.context = data["context"]
         sp.sketches = [SketchBase.from_dict(s) for s in data["sketches"]]
         return sp
-
-    # TODO: fix this mess, this is terrible, i think the concept of
-    # reference needs to get fully refactored at this point...
-    def reference_repr(self):
-        output = []
-        if "source" in self.metadata and self.metadata["source"]:
-            if "sqlite" in self.metadata["source"]["data"]:
-                output.append(f"SQLITE:[{self.metadata['source']['data']['sqlite']}]")
-        if "relation" in self.metadata and self.metadata["relation"]:
-            if "table" in self.metadata["relation"]["data"]:
-                output.append(f"TABLE:[{self.metadata['relation']['data']['table']}]")
-        if "reference" in self.metadata and self.metadata["reference"]:
-            if "column" in self.metadata["reference"]["data"]:
-                output.append(f"COL:[{self.metadata['reference']['data']['column']}]")
-        return " ".join(output)
 
 
 # TODO: Add a "row-iterator" style, that builds sketchpads from a row-iterator
@@ -126,13 +92,7 @@ class Portfolio:
 
     def add_dataframe(self, df):
         for col in df.columns:
-            sp = SketchPad.from_series(
-                df[col],
-                context=df.attrs,
-                source=df.attrs.get("source"),
-                relation={"table": df.attrs.get("table_name")},
-                reference={"column": col},
-            )
+            sp = SketchPad.from_series(df[col])
             self.add_sketchpad(sp)
         return self
 
