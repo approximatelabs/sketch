@@ -15,7 +15,8 @@ from .sketches import SketchBase
 # either use a single source of truth, or have good robust tests.
 # -- These feel more useful for the client, utility methods
 
-
+# TODO: consider sketchpad having the same "interface" as a sketch..
+# maybe that's the "abstraction" here...
 class SketchPad:
     version = "0.0.1"
     sketch_classes = SketchBase.all_sketches()
