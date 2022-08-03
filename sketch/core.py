@@ -18,9 +18,9 @@ from .sketches import SketchBase
 
 class SketchPad:
     version = "0.0.1"
-    sketches = SketchBase.all_sketches()
+    sketch_classes = SketchBase.all_sketches()
 
-    def __init__(self, reference, context=None):
+    def __init__(self, reference, context=None, initialize_sketches=True):
         self.version = "0.0.1"
         self.id = str(uuid.uuid4())
         self.metadata = {
@@ -29,9 +29,10 @@ class SketchPad:
         }
         self.reference = reference
         self.context = context or {}
-        # TODO: consider alternate naming convention
-        # so can do dictionary lookups
-        self.sketches = []
+        if initialize_sketches:
+            self.sketches = [skcls.empty() for skcls in self.sketch_classes]
+        else:
+            self.sketches = []
 
     def get_sketch_by_name(self, name):
         sketches = [sk for sk in self.sketches if sk.name == name]
@@ -50,6 +51,15 @@ class SketchPad:
             return None
         return self_minhash.jaccard(other_minhash)
 
+    def compute_sketches(self, data):
+        # data is assumed to be an iterable
+        for row in data:
+            for sk in self.sketches:
+                sk.add_row(row)
+        # freeze sketches
+        for sk in self.sketches:
+            sk.freeze()
+
     def to_dict(self):
         return {
             "version": self.version,
@@ -61,8 +71,8 @@ class SketchPad:
 
     @classmethod
     def from_series(cls, series, reference):
-        sp = cls(reference)
-        for skcls in cls.sketches:
+        sp = cls(reference, initalize_sketches=False)
+        for skcls in cls.sketch_classes:
             sp.sketches.append(skcls.from_series(series))
         sp.metadata["creation_end"] = datetime.datetime.utcnow().isoformat()
         sp.context["column_name"] = series.name
@@ -77,9 +87,6 @@ class SketchPad:
         sp.context = data["context"]
         sp.sketches = [SketchBase.from_dict(s) for s in data["sketches"]]
         return sp
-
-
-# TODO: Add a "row-iterator" style, that builds sketchpads from a row-iterator
 
 
 class Portfolio:
