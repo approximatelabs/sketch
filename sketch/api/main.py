@@ -212,7 +212,6 @@ async def upload_sketchpad(
     sketchpad: models.SketchPad, user: auth.User = Depends(auth.get_token_user)
 ):
     # Ensure sketchpad parses correctly
-    print(sketchpad.dict())
     SketchPad.from_dict(sketchpad.dict())
     # add the pydantic sketchpad directly to database
     await data.add_sketchpad(database, user.username, sketchpad)

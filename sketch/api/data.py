@@ -121,7 +121,7 @@ async def migration_1(db: Database):
 async def add_sketchpad(db: Database, user: str, sketchpad: models.SketchPad):
     query = """
         INSERT OR IGNORE INTO sketchpad (id, data, reference_id, upload_at, owner_username)
-        VALUES (:id, :data, :source_id, :relation_id, :reference_id, CURRENT_TIMESTAMP, :owner_username);
+        VALUES (:id, :data, :reference_id, CURRENT_TIMESTAMP, :owner_username);
     """
     async with db.transaction():
         await ensure_reference(db, sketchpad.reference)
@@ -181,6 +181,6 @@ async def ensure_reference(db: Database, reference: Reference):
     query = (
         "INSERT OR IGNORE INTO reference (id, data, type) VALUES (:id, :data, :type);"
     )
-    print(reference.dict())
-    # data is a dict, not a string right now...
-    await db.execute(query, values=reference.dict())
+    to_save = reference.dict()
+    to_save.update({"data": json.dumps(reference.data)})
+    await db.execute(query, values=to_save)
