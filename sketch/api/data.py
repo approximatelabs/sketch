@@ -118,6 +118,19 @@ async def migration_1(db: Database):
         await db.execute(query)
 
 
+async def remove_sketchpad(db: Database, user: str, sketchpad: models.SketchPad):
+    query = """
+        DELETE FROM sketchpad WHERE id = :id AND owner_username = :owner_username;
+    """
+    await db.execute(
+        query,
+        values={
+            "owner_username": user,
+            "id": sketchpad.metadata.id,
+        },
+    )
+
+
 async def add_sketchpad(db: Database, user: str, sketchpad: models.SketchPad):
     query = """
         INSERT OR IGNORE INTO sketchpad (id, data, reference_id, upload_at, owner_username)

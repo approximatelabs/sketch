@@ -906,8 +906,16 @@ video {
 }
 
 .text-blue-500 {
+<<<<<<< Updated upstream
+=======
   --tw-text-opacity: 1;
   color: rgb(59 130 246 / var(--tw-text-opacity));
+}
+
+.text-cyan-800 {
+>>>>>>> Stashed changes
+  --tw-text-opacity: 1;
+  color: rgb(21 94 117 / var(--tw-text-opacity));
 }
 
 .text-cyan-500 {
