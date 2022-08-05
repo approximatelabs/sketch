@@ -1,32 +1,74 @@
 {% macro reference_card(sketchpad) -%}
 
 <!-- Flexbox for card, full width, rounded with shadow -->
-<div class="flex flex-row items-baseline shadow-lg justify-center bg-slate-50">
-    <div class="grow flex flex-col px-4">
-        <div class="">
-            <span class="text-sm text-bold text-blue-500">
-                Reference
-            </span>
-            <a class="text-l font-bold" href="/refernece/{{ sketchpad.reference.id }}">
-                {{ sketchpad.reference.data }}
-            </a>
+<div class="relative">
+    <div class="absolute top-0 right-0 bg-slate-50 hover:bg-slate-300"
+        onclick="testing(`{{ sketchpad.reference.to_pyscript() }}`)">
+        <svg class="h-8" viewbox="0 0 360 442">
+            <g fill="white" stroke="black" stroke-width="40">
+                <rect x="20" y="20" rx="60" ry="60" width="200" height="282" />
+                <rect x="140" y="140" rx="60" ry="60" width="200" height="282" />
+            </g>
+        </svg>
+    </div>
+    <div class="flex flex-row items-baseline shadow-lg justify-center bg-slate-50">
+        <div class="grow flex flex-col px-4 bg-no-repeat bg-[length:100px_20px]" style="background-image: url(  );">
+            <div class="grow flex flex-col p-4">
+                <div class="grow flex flex-row space-x-4 items-center">
+                    <img class="h-8 shadow"
+                        src="{% if sketchpad.reference.type == 'SqliteColumn' %}{{ url_for('static', path='SQLite370.svg') }}{% elif sketchpad.reference.type == 'PandasDataframeColumn' %}{{ url_for('static', path='pandas.svg') }}{% else %}{{ url_for('static', path='approximatelabs-logo.png') }}    {% endif %}"
+                        alt="Logo" class="w-8 h-8">
+                    <a class="text-l font-bold overflow-hidden w-24" href="/refernece/{{ sketchpad.reference.id }}">
+                        ref:{{ sketchpad.reference.id }}
+                    </a>
+                </div>
+                {% if sketchpad.reference.type == 'SqliteColumn' %}
+                <div class="text-l font-bold">{{ sketchpad.reference.data['path'] }}</div>
+                <div class="grow flex flex-row align-baseline">
+                    <div class="flex flex-col">
+                        <div class="text-sm font-bold">Query:</div>
+                        <div class="text-xs font-bold">Column:</div>
+                    </div>
+                    <div class="p-2"></div>
+                    <div class="flex flex-col">
+                        <div class="text-sm font-semibold">{{ sketchpad.reference.data['query'] }}</div>
+                        <div class="text-xs font-semibold">{{ sketchpad.reference.data['column'] }}</div>
+                    </div>
+                </div>
+                {% elif sketchpad.reference.type == 'PandasDataframeColumn' %}
+                <div class="text l font-bold">{{ sketchpad.reference.data['dfname'] }}</div>
+                <div class="text l font-bold">{{ sketchpad.reference.data['col'] }}</div>
+                {% else %}
+                <div class="text l font-bold">Unknown</div>
+                <div class="text l font-bold">Unknown</div>
+                {% endif %}
+            </div>
+
+        </div>
+        <div class="flex flex-col items-end px-4">
+            <p class="text-xl">
+                <span class="text-sm text-cyan-800">
+                    Est #Uniques:
+                </span>
+                {{ sketchpad.get_sketchdata_by_name("HyperLogLog").count() | round | int }}
+            </p>
+            <p class="text-xl">
+                <span class="text-sm text-cyan-500">
+                    Rows:
+                </span>
+                {{ sketchpad.get_sketchdata_by_name("Rows") | int }}
+            </p>
         </div>
     </div>
-    <div class="flex flex-col items-end px-4">
-        <p class="text-xl">
-            <span class="text-sm text-cyan-800">
-                Est #Uniques:
-            </span>
-            {{ sketchpad.get_sketchdata_by_name("HyperLogLog").count() | round | int }}
-        </p>
-        <p class="text-xl">
-            <span class="text-sm text-cyan-500">
-                Rows:
-            </span>
-            {{ sketchpad.get_sketchdata_by_name("Rows") | int }}
-        </p>
-    </div>
 </div>
+<script>
+    function testing(text) {
+        navigator.clipboard.writeText(text).then(function () {
+        }, function (err) {
+            console.error('Async: Could not copy text: ', err);
+        });
+    }
+</script>
 
 {%- endmacro %}
 

@@ -29,7 +29,8 @@ class Reference:
             "data": self.data,
         }
 
-    def to_json(self):
+    @classmethod
+    def to_json(cls, self):
         return json.dumps(self.to_dict())
 
     @classmethod
@@ -95,7 +96,7 @@ class SqliteColumn(Reference):
 
 class PandasDataframeColumn(Reference):
     def __init__(self, column, dfname, **dfextra):
-        super().__init__(dfname=dfname, column=column, extra=dfextra)
+        super().__init__(dfname=dfname, column=column, **dfextra)
 
     def to_searchable_string(self):
         base = " ".join([self.data["dfname"], self.data["column"]])

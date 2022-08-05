@@ -18,6 +18,7 @@ SKETCHCACHE = "~/.cache/sketch/"
 # either use a single source of truth, or have good robust tests.
 # -- These feel more useful for the client, utility methods
 
+
 # TODO: consider sketchpad having the same "interface" as a sketch..
 # maybe that's the "abstraction" here...
 class SketchPad:
@@ -177,6 +178,9 @@ class Portfolio:
     def find_joinables_html(self, url=None, apiKey=None):
         self.upload(url=url, apiKey=apiKey)
         # now get the matching
+        # maybe instead, return iframe?
+        # or maybe don't make it an api page only? not sure, but the embedding isn't "clean"
+        # right now, lots of runaway visualization. I'm believing that iframe would solve..
         resp = requests.get(
             (url or "http://localhost:8000/api") + "/component/get_approx_best_joins",
             json=list(self.sketchpads.keys()),
@@ -184,29 +188,14 @@ class Portfolio:
         )
         if resp.status_code != 200:
             raise Exception(f"Error getting joinables: {resp.text}")
-        from IPython.core.display import HTML, display
+
+        from IPython.display import HTML, display
 
         display(HTML(resp.text))
 
-    def find_joinables(self, url=None, apiKey=None):
-        self.upload(url=url, apiKey=apiKey)
-        # now get the matching
-        resp = requests.get(
-            (url or "http://localhost:8000/api") + "/get_approx_best_joins",
-            json=list(self.sketchpads.keys()),
-            headers={"Authorization": f"Bearer {apiKey}"},
-        )
-        if resp.status_code != 200:
-            raise Exception(f"Error getting joinables: {resp.text}")
-        for x in resp.json():
-            left_sketchpad = SketchPad.from_dict(x["left_sketchpad"])
-            right_sketchpad = SketchPad.from_dict(x["right_sketchpad"])
-            print(
-                f"{x['score']:0.4f}  "
-                + left_sketchpad.metadata["reference"]["data"]["column"]
-                + " -- "
-                + right_sketchpad.reference_repr()
-            )
+    # Should be able to create, for every API method, a component version -- oh, these are "more than macros"
+    #  -> the component library = API library? Is that an equivalance? or is it a 1 to many? gotta think about this.
+    #  for now, removing the text-based representation.
 
     def upload(self, url=None, apiKey=None, batch=False):
         # TODO: Try and get URL from a global state variable
