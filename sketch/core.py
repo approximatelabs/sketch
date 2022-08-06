@@ -189,9 +189,21 @@ class Portfolio:
         if resp.status_code != 200:
             raise Exception(f"Error getting joinables: {resp.text}")
 
-        from IPython.display import HTML, display
+        from urllib.parse import quote
 
-        display(HTML(resp.text))
+        from IPython.display import IFrame, display
+
+        display(
+            IFrame(
+                src=f"data:text/html;charset=utf-8,{quote(resp.text)}",
+                width="100%",
+                height="600",
+                extras=[
+                    "onload=\"this.style.height=(this.contentWindow.document.body.scrollHeight+20)+'px';\"",
+                    'scrolling="no"',
+                ],
+            )
+        )
 
     # Should be able to create, for every API method, a component version -- oh, these are "more than macros"
     #  -> the component library = API library? Is that an equivalance? or is it a 1 to many? gotta think about this.
