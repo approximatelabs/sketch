@@ -175,7 +175,7 @@ class Portfolio:
         top_n = heapq.nlargest(n, scores, key=lambda x: x[0])
         return [(s, self.sketchpads[i]) for s, i in top_n]
 
-    def find_joinables_html(self, url=None, apiKey=None):
+    def find_joinables_html(self, url=None, apiKey=None, rawhtml=False):
         self.upload(url=url, apiKey=apiKey)
         # now get the matching
         # maybe instead, return iframe?
@@ -189,17 +189,20 @@ class Portfolio:
         if resp.status_code != 200:
             raise Exception(f"Error getting joinables: {resp.text}")
 
+        if rawhtml:
+            return resp.text
+
         from urllib.parse import quote
 
         from IPython.display import IFrame, display
 
+        # TODO: consider iframe resizing magic (both in parent code, some JS, and in the frame (more JS))
         display(
             IFrame(
                 src=f"data:text/html;charset=utf-8,{quote(resp.text)}",
                 width="100%",
                 height="600",
                 extras=[
-                    "onload=\"this.style.height=(this.contentWindow.document.body.scrollHeight+20)+'px';\"",
                     'scrolling="no"',
                 ],
             )

@@ -3,5 +3,6 @@ flake8==4.0.1
 isort==5.10.1
 jupyterlab==3.4.3
 arel==0.2.0
+streamlit==1.11.1
 
 -e .
