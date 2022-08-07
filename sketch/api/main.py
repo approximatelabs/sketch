@@ -150,15 +150,26 @@ async def references(
 
 
 @app.get("/search")
-async def search(request: Request, user: auth.User = Depends(auth.get_browser_user)):
+async def search(
+    request: Request, user: auth.User = Depends(auth.get_browser_user), q: str = ""
+):
     # obviously no need to normally get the whole thing... but for now, we'll do it.
-    pf = await data.get_portfolio(database, user.username)
+    if q:
+        pf = await data.get_portfolio(database, user.username)
+        to_keep = [
+            x for x in pf.sketchpads.values() if q in x.reference.to_searchable_string()
+        ]
+        pf = Portfolio(sketchpads=to_keep)
+    else:
+        pf = Portfolio()
+
     return templates.TemplateResponse(
         "page/search.html",
         {
             "request": request,
             "user": user,
             "portfolio": pf,
+            "q": q,
         },
     )
 

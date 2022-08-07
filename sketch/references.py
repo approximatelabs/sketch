@@ -100,7 +100,7 @@ class PandasDataframeColumn(Reference):
 
     def to_searchable_string(self):
         base = " ".join([self.data["dfname"], self.data["column"]])
-        base += " ".join([f"{k}={v}" for k, v in self.data["extra"].items()])
+        base += " ".join([f"{k}={v}" for k, v in self.data.get("extra", {}).items()])
         return base
 
     def to_pyscript(self):

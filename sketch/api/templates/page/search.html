@@ -6,7 +6,7 @@
 
 {% block body %}
 
-<div class="flex h-screen p-8">
+<div class="flex p-8">
     <form class="m-auto w-96" action="{{ url_for('search') }}" method="GET">
         <label for=" default-search" class="mb-2 text-sm font-medium text-gray-900 sr-only dark:text-gray-300">
             Search</label>
@@ -18,14 +18,21 @@
                         d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                 </svg>
             </div>
-            <input type="search" id="default-search"
+            <input type="search" id="default-search" name="q"
                 class="block p-4 pl-10 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-                placeholder="Search For Data!" required>
+                placeholder="Search For Data!" {% if q %}value="{{ q }}" {% endif %} required>
             <button type="submit"
                 class="text-white absolute right-2.5 bottom-2.5 bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Search</button>
         </div>
     </form>
 </div>
+{% if portfolio.sketchpads | length == 0 %}
+<div class="flex p-8 flex-col items-center">
+    <span>
+        No results...
+    </span>
+</div>
+{% else %}
 {{ reference_list(portfolio) }}
-
+{% endif %}
 {% endblock %}
