@@ -2,7 +2,7 @@
 
 <!-- Flexbox for card, full width, rounded with shadow -->
 <div class="relative">
-    <div class="absolute top-0 right-0 bg-slate-50 hover:bg-slate-300"
+    <div class="absolute top-0 right-0 bg-slate-50 hover:bg-slate-300 dark:bg-gray-800 dark:hover:bg-gray-900 rounded-bl-lg rounded-tr-lg"
         onclick="testing(`{{ sketchpad.reference.to_pyscript() }}`)">
         <svg class="h-8" viewbox="0 0 360 442">
             <g fill="white" stroke="black" stroke-width="40">
@@ -11,11 +11,11 @@
             </g>
         </svg>
     </div>
-    <div class="flex flex-row items-baseline shadow-lg justify-center bg-slate-50">
+    <div class="flex flex-row items-baseline shadow-lg justify-center bg-slate-50 dark:bg-slate-900">
         <div class="grow flex flex-col px-4 bg-no-repeat bg-[length:100px_20px]" style="background-image: url(  );">
             <div class="grow flex flex-col p-4">
-                <div class="grow flex flex-row space-x-4 items-center">
-                    <img class="h-8 shadow"
+                <div class="flex flex-row space-x-4 items-center">
+                    <img class="h-8 shadow dark:bg-slate-300"
                         src="{% if sketchpad.reference.type == 'SqliteColumn' %}{{ url_for('static', path='SQLite370.svg') }}{% elif sketchpad.reference.type == 'PandasDataframeColumn' %}{{ url_for('static', path='pandas.svg') }}{% else %}{{ url_for('static', path='approximatelabs-logo.png') }}    {% endif %}"
                         alt="Logo" class="w-8 h-8">
                     <a class="text-l font-bold overflow-hidden w-24" href="/refernece/{{ sketchpad.reference.id }}">

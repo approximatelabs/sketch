@@ -149,6 +149,20 @@ async def references(
     )
 
 
+@app.get("/search")
+async def search(request: Request, user: auth.User = Depends(auth.get_browser_user)):
+    # obviously no need to normally get the whole thing... but for now, we'll do it.
+    pf = await data.get_portfolio(database, user.username)
+    return templates.TemplateResponse(
+        "page/search.html",
+        {
+            "request": request,
+            "user": user,
+            "portfolio": pf,
+        },
+    )
+
+
 @app.get("/apple")
 async def apple(request: Request, user: auth.User = Depends(auth.get_browser_user)):
     return "🍎"

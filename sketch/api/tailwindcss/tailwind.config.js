@@ -5,6 +5,7 @@ module.exports = {
     extend: {},
   },
   plugins: [],
+  darkMode: 'class',
 }
 
 // consider breaking keyframes and animations (theme.extend.animation, theme.extend.keyframes) into separate files
