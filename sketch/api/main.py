@@ -131,7 +131,14 @@ async def http_exception_handler(request, exc):
             app.url_path_for(name="login")
             + ("" if request.url.path == "/" else f"?redirect_uri={request.url.path}")
         )
+    elif exc.status_code == 404:
+        return templates.TemplateResponse("page/404.html", {"request": request})
     raise exc
+
+
+@app.get("/404")
+async def not_found(request: Request):
+    return templates.TemplateResponse("page/404.html", {"request": request})
 
 
 @app.get("/references")
