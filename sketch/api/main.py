@@ -160,13 +160,31 @@ async def references(
 async def search(
     request: Request, user: auth.User = Depends(auth.get_browser_user), q: str = ""
 ):
+
     # obviously no need to normally get the whole thing... but for now, we'll do it.
     if q:
+        from sentence_transformers import SentenceTransformer
+
+        model = SentenceTransformer("all-MiniLM-L6-v2")
+
         pf = await data.get_portfolio(database, user.username)
-        to_keep = [
-            x for x in pf.sketchpads.values() if q in x.reference.to_searchable_string()
+        texts = [
+            (x.id, x.reference.to_searchable_string()) for x in pf.sketchpads.values()
         ]
-        pf = Portfolio(sketchpads=to_keep)
+        embeddings = model.encode([x for _, x in texts])
+        from sklearn.neighbors import NearestNeighbors
+
+        # set desired number of neighbors
+        neigh = NearestNeighbors(n_neighbors=5)
+        neigh.fit(embeddings)
+
+        dist, neighbors = neigh.kneighbors(model.encode([q]), return_distance=True)
+        indexes = list(neighbors[0])
+        to_keep = []
+        for i, (id, text) in enumerate(texts):
+            if i in indexes:
+                to_keep.append(id)
+        pf = Portfolio(sketchpads=[pf.sketchpads[id] for id in to_keep])
     else:
         pf = Portfolio()
 
