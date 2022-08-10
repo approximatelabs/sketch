@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     app_name: str = "SketchAPI"
     db_url: str = "sqlite+aiosqlite:///test.db"
     debug: bool = False
+    faiss_path: str = "."
 
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -156,6 +157,37 @@ async def references(
     )
 
 
+@app.get("/refresh_index")
+async def refresh_index(
+    request: Request, user: auth.User = Depends(auth.get_browser_user)
+):
+    from sentence_transformers import SentenceTransformer
+
+    model = SentenceTransformer("all-MiniLM-L6-v2")
+    # iterate over sketch pads
+    pf = await data.get_portfolio(database, user.username)
+    texts = [(x.id, x.reference.to_searchable_string()) for x in pf.sketchpads.values()]
+    embeddings = model.encode([x for _, x in texts])
+
+    # see https://github.com/facebookresearch/faiss/blob/main/benchs/bench_hnsw.py
+    import uuid
+
+    import faiss
+
+    index = faiss.IndexHNSWFlat(embeddings.shape[1], 32)
+    index.hnsw.efConstruction = 40
+    index2 = faiss.IndexIDMap(index)
+    index2.add_with_ids(
+        embeddings,
+        np.array([uuid.UUID(x).int % (2**63) for x, _ in texts], dtype=np.int64),
+    )
+    global app
+    app.index = index2
+    # app.lookup_faiss = {i: x for i, (x, *_) in enumerate(texts)}
+    faiss.write_index(index2, os.path.join(settings.faiss_path, "trained.index"))
+    return "Okay..."
+
+
 @app.get("/search")
 async def search(
     request: Request, user: auth.User = Depends(auth.get_browser_user), q: str = ""
@@ -163,28 +195,23 @@ async def search(
 
     # obviously no need to normally get the whole thing... but for now, we'll do it.
     if q:
+        import faiss
         from sentence_transformers import SentenceTransformer
 
         model = SentenceTransformer("all-MiniLM-L6-v2")
 
-        pf = await data.get_portfolio(database, user.username)
-        texts = [
-            (x.id, x.reference.to_searchable_string()) for x in pf.sketchpads.values()
+        query_vector = model.encode([q])
+        # index = app.index
+        index = faiss.read_index(os.path.join(settings.faiss_path, "trained.index"))
+        D, I = index.search(query_vector, 5)
+        print(I)
+        indexes = list(I[0])
+        results = indexes
+        # results = [app.lookup_faiss[x] for x in indexes]
+        sketchpads = [
+            x async for x in data.get_sketchpads_by_id(database, results, user.username)
         ]
-        embeddings = model.encode([x for _, x in texts])
-        from sklearn.neighbors import NearestNeighbors
-
-        # set desired number of neighbors
-        neigh = NearestNeighbors(n_neighbors=5)
-        neigh.fit(embeddings)
-
-        dist, neighbors = neigh.kneighbors(model.encode([q]), return_distance=True)
-        indexes = list(neighbors[0])
-        to_keep = []
-        for i, (id, text) in enumerate(texts):
-            if i in indexes:
-                to_keep.append(id)
-        pf = Portfolio(sketchpads=[pf.sketchpads[id] for id in to_keep])
+        pf = Portfolio(sketchpads=sketchpads)
     else:
         pf = Portfolio()
 
