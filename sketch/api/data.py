@@ -88,8 +88,9 @@ async def migration_1(db: Database):
         ) WITHOUT ROWID;
         """,
         """
-        CREATE TABLE reference (
+        CREATE TABLE _reference (
             id TEXT NOT NULL PRIMARY KEY,
+            short_id INTEGER NOT NULL,
             data TEXT NOT NULL,
             type TEXT NOT NULL
         ) WITHOUT ROWID;
@@ -101,7 +102,6 @@ async def migration_1(db: Database):
             reference_id TEXT,
             upload_at TEXT,
             owner_username TEXT,
-            FOREIGN KEY(reference_id) REFERENCES reference(id),
             FOREIGN KEY(owner_username) REFERENCES user(username)
         ) WITHOUT ROWID;
         """,
@@ -191,9 +191,55 @@ async def get_portfolio(db: Database, user: str = None):
 
 
 async def ensure_reference(db: Database, reference: Reference):
-    query = (
-        "INSERT OR IGNORE INTO reference (id, data, type) VALUES (:id, :data, :type);"
-    )
+    query = "INSERT OR IGNORE INTO _reference (id, short_id, data, type) VALUES (:id, :short_id, :data, :type);"
     to_save = reference.dict()
     to_save.update({"data": json.dumps(reference.data)})
+    to_save.update(
+        {
+            "short_id": int.from_bytes(
+                bytes.fromhex(reference.id[:16]), "big", signed=True
+            )
+        }
+    )
     await db.execute(query, values=to_save)
+
+
+async def get_references(db: Database):
+    query = """
+        SELECT
+            short_id,
+            id,
+            data,
+            type
+        FROM _reference
+    """
+    async for short_id, id, data, type in db.iterate(query):
+        yield (
+            short_id,
+            Reference.from_dict({"id": id, "type": type, "data": json.loads(data)}),
+        )
+
+
+async def get_most_recent_sketchpads_by_reference_short_ids(
+    db: Database, short_ids, user: str = None
+):
+    # select short_id, reference_id, sketchpad.id  from sketchpad left join _reference ON reference_id = _reference.id where (owner_username = 'justin') and (short_id IN (8366672332147158452, -799403208509921231)) group by reference_id, owner_username having upload_at = MIN(upload_at) order by upload_at desc;
+    query = f"""
+        SELECT
+            sketchpad.data
+        FROM sketchpad
+        LEFT JOIN _reference ON reference_id = _reference.id
+        WHERE 
+            (owner_username = :user)
+            and 
+            (short_id IN ({','.join([f':{i}' for i in range(len(short_ids))])}))
+        GROUP BY
+            reference_id, owner_username
+        HAVING upload_at = MIN(upload_at)
+        ORDER BY upload_at DESC;
+    """
+    async for d, in db.iterate(
+        query,
+        values={"user": user, **{str(i): str(d) for i, d in enumerate(short_ids)}},
+    ):
+        yield SketchPad.from_dict(json.loads(d))

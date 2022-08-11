@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import time
 from functools import partial
@@ -18,6 +19,9 @@ from pydantic import BaseSettings
 
 from ..core import Portfolio, SketchPad
 from . import auth, data, models
+
+# logging.basicConfig()
+# logging.getLogger("databases").setLevel(logging.DEBUG)
 
 # ## PLAN FOR DIRECTORY STRUCTURE?
 
@@ -56,7 +60,9 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 settings = Settings()
 app = FastAPI()
 templates = Jinja2Templates(directory=os.path.join(dir_path, "templates"))
-database = Database(settings.db_url)
+database = Database(
+    settings.db_url,
+)
 
 # from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 # app.add_middleware(HTTPSRedirectMiddleware)
@@ -164,14 +170,11 @@ async def refresh_index(
     from sentence_transformers import SentenceTransformer
 
     model = SentenceTransformer("all-MiniLM-L6-v2")
-    # iterate over sketch pads
-    pf = await data.get_portfolio(database, user.username)
-    texts = [(x.id, x.reference.to_searchable_string()) for x in pf.sketchpads.values()]
-    embeddings = model.encode([x for _, x in texts])
+    # iterate over references, and add to index
+    short_ids, references = zip(*[x async for x in data.get_references(database)])
+    embeddings = model.encode([r.to_searchable_string() for r in references])
 
     # see https://github.com/facebookresearch/faiss/blob/main/benchs/bench_hnsw.py
-    import uuid
-
     import faiss
 
     index = faiss.IndexHNSWFlat(embeddings.shape[1], 32)
@@ -179,7 +182,7 @@ async def refresh_index(
     index2 = faiss.IndexIDMap(index)
     index2.add_with_ids(
         embeddings,
-        np.array([uuid.UUID(x).int % (2**63) for x, _ in texts], dtype=np.int64),
+        np.array(short_ids, dtype=np.int64),
     )
     global app
     app.index = index2
@@ -204,13 +207,15 @@ async def search(
         # index = app.index
         index = faiss.read_index(os.path.join(settings.faiss_path, "trained.index"))
         D, I = index.search(query_vector, 5)
-        print(I)
         indexes = list(I[0])
-        results = indexes
-        # results = [app.lookup_faiss[x] for x in indexes]
         sketchpads = [
-            x async for x in data.get_sketchpads_by_id(database, results, user.username)
+            x
+            async for x in data.get_most_recent_sketchpads_by_reference_short_ids(
+                database, indexes, user.username
+            )
         ]
+        print(len(sketchpads))
+        print(sketchpads)
         pf = Portfolio(sketchpads=sketchpads)
     else:
         pf = Portfolio()
@@ -289,7 +294,6 @@ async def upload_sketchpad(
     sketchpad: models.SketchPad, user: auth.User = Depends(auth.get_token_user)
 ):
     # Ensure sketchpad parses correctly
-    print(sketchpad)
     SketchPad.from_dict(sketchpad.dict())
     # add the pydantic sketchpad directly to database
     await data.add_sketchpad(database, user.username, sketchpad)
