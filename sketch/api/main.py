@@ -11,16 +11,15 @@ import arel
 import faiss
 import numpy as np
 import pandas as pd
-from databases import Database
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseSettings
 
 from ..core import Portfolio, SketchPad
 from . import auth, data, models
+from .deps import *
 
 # logging.basicConfig()
 # logging.getLogger("databases").setLevel(logging.DEBUG)
@@ -49,22 +48,10 @@ from . import auth, data, models
 # offline / online mode could be useful, to give things like "always on" or "self-updating" ones.
 
 
-# https://fastapi.tiangolo.com/advanced/settings/
-class Settings(BaseSettings):
-    app_name: str = "SketchAPI"
-    db_url: str = "sqlite+aiosqlite:///test.db"
-    debug: bool = False
-    faiss_path: str = "."
-
-
 dir_path = os.path.dirname(os.path.realpath(__file__))
 
-settings = Settings()
 app = FastAPI()
 templates = Jinja2Templates(directory=os.path.join(dir_path, "templates"))
-database = Database(
-    settings.db_url,
-)
 
 # from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 # app.add_middleware(HTTPSRedirectMiddleware)
@@ -106,6 +93,22 @@ async def setup_index():
     except:
         index = None
     app.index = index
+    if settings.setup_fake_users:
+        if await data.count_users(database) == 0:
+            await data.add_user(
+                database,
+                "justin",
+                "Justin Waugh",
+                "justin@approximatelabs.com",
+                "$2b$12$xbAAbEMA8UY8iloOrVTxmuDHPbwmpX0TzLNtjHr8BCmFIZvSMVc2.",
+            )
+            await data.add_apikey(
+                database,
+                "justin",
+                "8f79be2b6d0d47ccb8192e46f38c80ce",
+                "hello",
+                "2025-01-01T00:00:00Z",
+            )
 
 
 # Set up data (for now just storing stuff on app...)
@@ -127,6 +130,7 @@ async def add_process_time_header(request: Request, call_next):
     response = await call_next(request)
     process_time = time.time() - start_time
     response.headers["X-Process-Time"] = str(process_time)
+    request.app.database = database
     return response
 
 

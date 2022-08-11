@@ -1,6 +1,7 @@
 import json
 
 from databases import Database
+from fastapi import Request
 
 from ..core import Portfolio, SketchPad
 from ..references import Reference
@@ -75,8 +76,7 @@ async def migration_1(db: Database):
             username TEXT NOT NULL PRIMARY KEY,
             full_name TEXT,
             email TEXT,
-            hashed_password TEXT,
-            disabled INTEGER
+            hashed_password TEXT
         ) WITHOUT ROWID;
         """,
         """
@@ -84,6 +84,7 @@ async def migration_1(db: Database):
             key TEXT NOT NULL PRIMARY KEY,
             note TEXT,
             owner_username TEXT,
+            expires_at TEXT,
             FOREIGN KEY(owner_username) REFERENCES user(username)
         ) WITHOUT ROWID;
         """,
@@ -118,16 +119,68 @@ async def migration_1(db: Database):
         await db.execute(query)
 
 
-async def remove_sketchpad(db: Database, user: str, sketchpad: models.SketchPad):
+async def add_user(db: Database, username, full_name, email, hashed_password):
     query = """
-        DELETE FROM sketchpad WHERE id = :id AND owner_username = :owner_username;
+        INSERT OR IGNORE INTO user (username, full_name, email, hashed_password)
+        VALUES (:username, :full_name, :email, :hashed_password);
     """
     await db.execute(
         query,
         values={
-            "owner_username": user,
-            "id": sketchpad.metadata.id,
+            "username": username,
+            "full_name": full_name,
+            "email": email,
+            "hashed_password": hashed_password,
         },
+    )
+
+
+async def get_user(db: Database, username: str):
+    query = """
+        SELECT
+            username,
+            full_name,
+            email,
+            hashed_password
+        FROM user
+        WHERE 
+            (username = :username)    
+    """
+    user = await db.fetch_one(query, values={"username": username})
+    return user
+
+
+async def count_users(db: Database):
+    query = """
+        SELECT
+            count(*)
+        FROM user
+    """
+    (count,) = await db.fetch_one(query)
+    return count
+
+
+async def get_apikey(db: Database, key: str):
+    query = """
+        SELECT
+            owner_username,
+            expires_at
+        FROM apikeys
+        WHERE 
+            (key = :key)    
+    """
+    (user, expires_at) = await db.fetch_one(query, values={"key": key})
+    return user, expires_at
+
+
+async def add_apikey(db: Database, user: str, key: str, note: str, expires_at: str):
+    query = """
+        INSERT OR IGNORE INTO apikeys (key, note, owner_username, expires_at)
+        VALUES (:key, :note, :user, :expires_at);
+    """
+    await db.execute(
+        query,
+        values={"key": key, "note": note, "user": user, "expires_at": expires_at},
     )
 
 

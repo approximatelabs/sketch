@@ -14,32 +14,15 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
 
+from . import data
+from .deps import *
+
 # TODO: consider throwing this whole style away, use a tool.
 
 # TODO: put this into an env var or something (env or db? which is better?)
 SECRET_KEY = "b684803ea47c9d287a18559418fd531f6e640a5c3f714f7b10b8a0904f7a3b85"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
-
-# TODO: Put this into database instead of memorized
-fake_users_db = {
-    "justin": {
-        "username": "justin",
-        "full_name": "Justin Waugh",
-        "email": "justin@approximatelabs.com",
-        "hashed_password": "$2b$12$xbAAbEMA8UY8iloOrVTxmuDHPbwmpX0TzLNtjHr8BCmFIZvSMVc2.",
-    }
-}
-
-
-faken_token_db = {
-    "8f79be2b6d0d47ccb8192e46f38c80ce": {
-        "username": "justin",
-        "note": "hello",
-        "exp": "2025-01-01T00:00:00Z",
-    }
-}
 
 
 class Token(BaseModel):
@@ -108,14 +91,18 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 
-def get_user_from_db(db, username: str):
-    if username in db:
-        user_dict = db[username]
-        return UserInDB(**user_dict)
+async def get_user_from_db(database, username: str):
+    try:
+        username, name, email, hashed_password = await data.get_user(database, username)
+    except:
+        return None
+    return UserInDB(
+        username=username, email=email, full_name=name, hashed_password=hashed_password
+    )
 
 
-def authenticate_user(fake_db, username: str, password: str):
-    user = get_user_from_db(fake_db, username)
+async def authenticate_user(database, username: str, password: str):
+    user = await get_user_from_db(database, username)
     if not user:
         return False
     if not verify_password(password, user.hashed_password):
@@ -134,17 +121,20 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 
-async def get_user(token: str = Depends(oauth2_scheme)):
+async def get_user(request: Request, token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
     # TODO: fix this to use a database with a function like the get_user_from_db does
-    if token in faken_token_db:
-        token_data = faken_token_db[token]
-        username = token_data["username"]
-        user = get_user_from_db(fake_users_db, username)
+    try:
+        api_token = await data.get_apikey(database, token)
+    except:
+        api_token = None
+    if api_token:
+        username, expires_at = api_token
+        user = await get_user_from_db(database, username)
         if not user:
             raise credentials_exception
         user.is_token = True
@@ -158,7 +148,7 @@ async def get_user(token: str = Depends(oauth2_scheme)):
     except JWTError as e:
         print(f"Error: {e}")
         raise credentials_exception
-    user = get_user_from_db(fake_users_db, username=token_data.username)
+    user = await get_user_from_db(database, username=token_data.username)
     if user is None:
         raise credentials_exception
     return user
@@ -183,11 +173,12 @@ async def logout():
 
 
 async def login_for_access_token(
+    request: Request,
     response: Response,
     redirect_uri: str = None,
     form_data: OAuth2PasswordRequestForm = Depends(),
 ):
-    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
+    user = await authenticate_user(database, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
