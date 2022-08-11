@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %} Sketchpad {% endblock %}
+
+{% block body %}
+
+<h1 class="text-4xl font-bold underline"> Sketchpad Detail </h1>
+
+<p class="text-xl">
+    <span class="text-sm text-cyan-800">
+        Est #Uniques:
+    </span>
+    {{ sketchpad.get_sketchdata_by_name("HyperLogLog").count() | round | int }}
+</p>
+<p class="text-xl">
+    <span class="text-sm text-cyan-500">
+        Rows:
+    </span>
+    {{ sketchpad.get_sketchdata_by_name("Rows") | int }}
+</p>
+
+<pre>
+{{ sketchpad_json }}
+</pre>
+{% endblock %}

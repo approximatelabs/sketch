@@ -1,0 +1,23 @@
+{% from "macro/reference.html" import reference_list with context %}
+
+{% extends "base.html" %}
+
+{% block title %} Reference {% endblock %}
+
+{% block body %}
+
+<h1 class="text-4xl font-bold underline"> Reference Detail </h1>
+
+
+<div class="container max-width" id="cardinality_history"></div>
+
+{{ reference_list(portfolio, True)}}
+
+<script type="text/javascript">
+    var spec = "{{ url_for('cardinality_history')}}?reference_id={{ reference_id }}";
+    vegaEmbed('#cardinality_history', spec, opt = { actions: false }).then(function (result) {
+        // Access the Vega view instance (https://vega.github.io/vega/docs/api/view/) as result.view
+    }).catch(console.error);
+</script>
+
+{% endblock %}

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import os
 import time
@@ -7,6 +8,7 @@ from typing import List
 
 import altair as alt
 import arel
+import faiss
 import numpy as np
 import pandas as pd
 from databases import Database
@@ -96,6 +98,16 @@ async def database_disconnect():
     await database.disconnect()
 
 
+@app.on_event("startup")
+async def setup_index():
+    global app
+    try:
+        index = faiss.read_index(os.path.join(settings.faiss_path, "trained.index"))
+    except:
+        index = None
+    app.index = index
+
+
 # Set up data (for now just storing stuff on app...)
 app.portfolio = Portfolio()
 
@@ -163,6 +175,43 @@ async def references(
     )
 
 
+@app.get("/reference/{reference_id}")
+async def reference(
+    request: Request,
+    reference_id: str,
+    user: auth.User = Depends(auth.get_browser_user),
+):
+    pf = await data.get_reference_portfolio(database, reference_id, user.username)
+    return templates.TemplateResponse(
+        "page/reference.html",
+        {
+            "request": request,
+            "user": user,
+            "portfolio": pf,
+            "reference_id": reference_id,
+        },
+    )
+
+
+@app.get("/sketchpad/{sketchpad_id}")
+async def sketchpad(
+    request: Request,
+    sketchpad_id: str,
+    user: auth.User = Depends(auth.get_browser_user),
+):
+    sketchpad = await data.get_sketchpad(database, sketchpad_id, user.username)
+    return templates.TemplateResponse(
+        "page/sketchpad.html",
+        {
+            "request": request,
+            "user": user,
+            "sketchpad": sketchpad,
+            "sketchpad_json": json.dumps(sketchpad.to_dict(), indent=2),
+            "sketchpad_id": sketchpad_id,
+        },
+    )
+
+
 @app.get("/refresh_index")
 async def refresh_index(
     request: Request, user: auth.User = Depends(auth.get_browser_user)
@@ -175,8 +224,8 @@ async def refresh_index(
     embeddings = model.encode([r.to_searchable_string() for r in references])
 
     # see https://github.com/facebookresearch/faiss/blob/main/benchs/bench_hnsw.py
-    import faiss
 
+    # index = faiss.IndexFlatL2(embeddings.shape[1])
     index = faiss.IndexHNSWFlat(embeddings.shape[1], 32)
     index.hnsw.efConstruction = 40
     index2 = faiss.IndexIDMap(index)
@@ -186,7 +235,6 @@ async def refresh_index(
     )
     global app
     app.index = index2
-    # app.lookup_faiss = {i: x for i, (x, *_) in enumerate(texts)}
     faiss.write_index(index2, os.path.join(settings.faiss_path, "trained.index"))
     return "Okay..."
 
@@ -198,14 +246,12 @@ async def search(
 
     # obviously no need to normally get the whole thing... but for now, we'll do it.
     if q:
-        import faiss
         from sentence_transformers import SentenceTransformer
 
         model = SentenceTransformer("all-MiniLM-L6-v2")
 
         query_vector = model.encode([q])
-        # index = app.index
-        index = faiss.read_index(os.path.join(settings.faiss_path, "trained.index"))
+        index = app.index
         D, I = index.search(query_vector, 5)
         indexes = list(I[0])
         sketchpads = [
@@ -214,8 +260,6 @@ async def search(
                 database, indexes, user.username
             )
         ]
-        print(len(sketchpads))
-        print(sketchpads)
         pf = Portfolio(sketchpads=sketchpads)
     else:
         pf = Portfolio()
@@ -284,6 +328,30 @@ async def cardhisto(request: Request, user: auth.User = Depends(auth.get_browser
             y=alt.Y("y", title="Count"),
         )
         .properties(width="container", height=300)
+    )
+    return chart.to_dict()
+
+
+@app.get("/cardinality_history")
+async def cardinality_history(
+    request: Request,
+    reference_id: str,
+    user: auth.User = Depends(auth.get_browser_user),
+):
+    pf = await data.get_reference_portfolio(database, reference_id, user.username)
+    df = pd.DataFrame(
+        {
+            "date": [s.metadata["creation_start"] for s in pf.sketchpads.values()],
+            "cardinality_estimate": [
+                s.get_sketchdata_by_name("HyperLogLog").count()
+                for s in pf.sketchpads.values()
+            ],
+        }
+    )
+    chart = (
+        alt.Chart(df)
+        .mark_line(point=alt.OverlayMarkDef(color="blue"))
+        .encode(x="date:T", y="cardinality_estimate:Q")
     )
     return chart.to_dict()
 

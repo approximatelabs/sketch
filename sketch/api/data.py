@@ -168,6 +168,19 @@ async def get_sketchpads(db: Database, user: str = None):
         yield SketchPad.from_dict(json.loads(d))
 
 
+async def get_sketchpad(db: Database, sketchpad_id: str, user: str = None):
+    query = """
+        SELECT
+            data
+        FROM sketchpad
+        WHERE 
+            (id = :id) 
+            and (owner_username = :user)    
+    """
+    (d,) = await db.fetch_one(query, values={"id": sketchpad_id, "user": user})
+    return SketchPad.from_dict(json.loads(d))
+
+
 async def get_sketchpads_by_id(db: Database, sketchpad_ids, user: str = None):
     query = f"""
         SELECT
@@ -218,6 +231,25 @@ async def get_references(db: Database):
             short_id,
             Reference.from_dict({"id": id, "type": type, "data": json.loads(data)}),
         )
+
+
+async def get_reference_portfolio(database, reference_id: str, user: str = None):
+    query = """
+        SELECT
+            data
+        FROM sketchpad
+        WHERE 
+            (owner_username = :user)
+            and 
+            (reference_id = :reference_id)
+    """
+    sketchpads = [
+        SketchPad.from_dict(json.loads(d))
+        async for d, in database.iterate(
+            query, values={"user": user, "reference_id": reference_id}
+        )
+    ]
+    return Portfolio(sketchpads=sketchpads)
 
 
 async def get_most_recent_sketchpads_by_reference_short_ids(

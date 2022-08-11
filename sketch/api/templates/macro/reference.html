@@ -1,4 +1,4 @@
-{% macro reference_card(sketchpad) -%}
+{% macro reference_card(sketchpad, sketchpadlink=False) -%}
 
 <!-- Flexbox for card, full width, rounded with shadow -->
 <div class="relative">
@@ -18,9 +18,17 @@
                     <img class="h-8 shadow dark:bg-slate-300"
                         src="{% if sketchpad.reference.type == 'SqliteColumn' %}{{ url_for('static', path='SQLite370.svg') }}{% elif sketchpad.reference.type == 'PandasDataframeColumn' %}{{ url_for('static', path='pandas.svg') }}{% else %}{{ url_for('static', path='approximatelabs-logo.png') }}    {% endif %}"
                         alt="Logo" class="w-8 h-8">
-                    <a class="text-l font-bold overflow-hidden w-24" href="/refernece/{{ sketchpad.reference.id }}">
+                    {% if sketchpadlink %}
+                    <a href="{{ url_for('sketchpad', sketchpad_id=sketchpad.id) }}"
+                        class="text-sm font-semibold text-slate-500 dark:text-slate-300">
+                        {{ sketchpad.id }}
+                    </a>
+                    {% else %}
+                    <a class="text-l font-bold overflow-hidden w-24" href="
+                    {{ url_for('reference', reference_id=sketchpad.reference.id) }}">
                         ref:{{ sketchpad.reference.id }}
                     </a>
+                    {% endif %}
                 </div>
                 {% if sketchpad.reference.type == 'SqliteColumn' %}
                 <div class="text-l font-bold">{{ sketchpad.reference.data['path'] }}</div>
@@ -72,13 +80,13 @@
 
 {%- endmacro %}
 
-{% macro reference_list(portfolio) -%}
+{% macro reference_list(portfolio, sketchpadlink=False) -%}
 
 <div class="flex justify-center items-center">
     <ul class="grow">
         {% for sketchpad in portfolio.sketchpads.values() %}
         <li class="p-2">
-            {{ reference_card(sketchpad) }}
+            {{ reference_card(sketchpad, sketchpadlink) }}
         </li>
         {% endfor %}
     </ul>
