@@ -136,13 +136,14 @@ class Portfolio:
         )
         logging.info(f"Found {len(tables)} tables in file {sqlite_db_path}")
         for i, table in enumerate(tables.name):
-            for column in pd.read_sql(f"PRAGMA table_info({table})", conn).name:
+            for column in pd.read_sql(f"PRAGMA table_info('{table}')", conn).name:
+                query = f"SELECT '{column}' FROM '{table}'"
                 reference = SqliteColumn(
-                    sqlite_db_path, f"SELECT {column} FROM {table}", column
+                    sqlite_db_path, query, column
                 )
                 # consider iterator here
                 sp = SketchPad.from_series(
-                    pd.read_sql(f"SELECT {column} FROM {table}", conn)[column],
+                    pd.read_sql(query, conn)[f"'{column}'"],
                     reference,
                 )
                 self.add_sketchpad(sp)

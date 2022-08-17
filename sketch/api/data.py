@@ -209,7 +209,7 @@ async def get_sketchpads(db: Database, user: str = None):
         SELECT
             data
         FROM sketchpad
-        WHERE 
+        WHERE
             (owner_username = :user) 
             and (NOT reference_id IS NULL)
         GROUP BY
@@ -239,9 +239,9 @@ async def get_sketchpads_by_id(db: Database, sketchpad_ids, user: str = None):
         SELECT
             data
         FROM sketchpad
-        WHERE 
+        WHERE
             (owner_username = :user)
-            and 
+            and
             (id IN ({','.join([f':{i}' for i in range(len(sketchpad_ids))])}))
     """
     async for d, in db.iterate(

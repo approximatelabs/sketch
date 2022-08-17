@@ -12,5 +12,6 @@ flax==0.5.3
 torch==1.12.1
 torchvision==0.13.1
 torchaudio==0.12.1
+lxml==4.9.1
 
 -e .
