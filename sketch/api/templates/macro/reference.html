@@ -15,9 +15,14 @@
         <div class="grow flex flex-col px-4 bg-no-repeat bg-[length:100px_20px]" style="background-image: url(  );">
             <div class="grow flex flex-col p-4">
                 <div class="flex flex-row space-x-4 items-center">
-                    <img class="h-8 shadow dark:bg-slate-300"
-                        src="{% if sketchpad.reference.type == 'SqliteColumn' %}{{ url_for('static', path='SQLite370.svg') }}{% elif sketchpad.reference.type == 'PandasDataframeColumn' %}{{ url_for('static', path='pandas.svg') }}{% else %}{{ url_for('static', path='approximatelabs-logo.png') }}    {% endif %}"
-                        alt="Logo" class="w-8 h-8">
+                    <img class="h-8 shadow dark:bg-slate-300" src="{% if sketchpad.reference.type == 'SqliteColumn' %}
+                            {{ url_for('static', path='SQLite370.svg') }}
+                        {% elif sketchpad.reference.type == 'PandasDataframeColumn' %}
+                        {{ url_for('static', path='pandas.svg') }}
+                        {% elif sketchpad.reference.type == 'WikipediaTableColumn' %}
+                        {{ url_for('static', path='Wikipedia-logo-v2-en.svg') }}
+                        {% else %}{{ url_for('static', path='approximatelabs-logo.png') }}    {% endif %}" alt="Logo"
+                        class="w-8 h-8">
                     {% if sketchpadlink %}
                     <a href="{{ url_for('sketchpad', sketchpad_id=sketchpad.id) }}"
                         class="text-sm font-semibold text-slate-500 dark:text-slate-300">
@@ -46,6 +51,9 @@
                 {% elif sketchpad.reference.type == 'PandasDataframeColumn' %}
                 <div class="text l font-bold">{{ sketchpad.reference.data['dfname'] }}</div>
                 <div class="text l font-bold">{{ sketchpad.reference.data['col'] }}</div>
+                {% elif sketchpad.reference.type == 'WikipediaTableColumn' %}
+                <div class="text l font-bold">{{ sketchpad.reference.data['url'] }}</div>
+                <div class="text l font-bold">{{ sketchpad.reference.data['column'] }}</div>
                 {% else %}
                 <div class="text l font-bold">Unknown</div>
                 <div class="text l font-bold">Unknown</div>

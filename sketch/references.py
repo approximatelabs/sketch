@@ -108,3 +108,26 @@ class PandasDataframeColumn(Reference):
         commands.append(f'df = {self.data["dfname"]}')
         commands.append(f'df = df[["{self.data["column"]}"]]')
         return "\n".join(commands)
+
+
+class WikipediaTableColumn(Reference):
+    def __init__(self, url, id, headers, column):
+        super().__init__(url=url, id=id, headers=headers, column=column)
+
+    def to_searchable_string(self):
+        base = " ".join(
+            [
+                self.data["url"],
+                self.data["id"],
+                self.data["headers"],
+                self.data["column"],
+            ]
+        )
+        return base
+
+    def to_pyscript(self):
+        commands = []
+        commands.append(f"import pandas as pd")
+        commands.append(f'df = pd.read_html({self.data["url"]})[{self.data["id"]}]')
+        commands.append(f'df = df[["{self.data["column"]}"]]')
+        return "\n".join(commands)
