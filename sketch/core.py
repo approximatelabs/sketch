@@ -8,7 +8,12 @@ import uuid
 import pandas as pd
 import requests
 
-from .references import PandasDataframeColumn, Reference, SqliteColumn
+from .references import (
+    PandasDataframeColumn,
+    Reference,
+    SqliteColumn,
+    WikipediaTableColumn,
+)
 from .sketches import SketchBase
 
 SKETCHCACHE = "~/.cache/sketch/"
@@ -80,7 +85,6 @@ class SketchPad:
         for skcls in cls.sketch_classes:
             sp.sketches.append(skcls.from_series(series))
         sp.metadata["creation_end"] = datetime.datetime.utcnow().isoformat()
-        sp.context["column_name"] = series.name
         return sp
 
     @classmethod
@@ -123,6 +127,12 @@ class Portfolio:
     def from_sqlite(cls, sqlite_db_path):
         return cls().add_sqlite(sqlite_db_path)
 
+    def add_wikitable(self, page, id, headers, pandas_df):
+        for col in pandas_df.columns:
+            reference = WikipediaTableColumn(page, id, headers, col)
+            sp = SketchPad.from_series(pandas_df[col], reference)
+            self.add_sketchpad(sp)
+
     def add_sqlite(self, sqlite_db_path):
         if sqlite_db_path.startswith("http"):
             os.system(f"wget -nc {sqlite_db_path} --directory-prefix={SKETCHCACHE} -q")
@@ -138,9 +148,7 @@ class Portfolio:
         for i, table in enumerate(tables.name):
             for column in pd.read_sql(f"PRAGMA table_info('{table}')", conn).name:
                 query = f"SELECT '{column}' FROM '{table}'"
-                reference = SqliteColumn(
-                    sqlite_db_path, query, column
-                )
+                reference = SqliteColumn(sqlite_db_path, query, column)
                 # consider iterator here
                 sp = SketchPad.from_series(
                     pd.read_sql(query, conn)[f"'{column}'"],

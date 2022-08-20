@@ -111,23 +111,27 @@ class PandasDataframeColumn(Reference):
 
 
 class WikipediaTableColumn(Reference):
-    def __init__(self, url, id, headers, column):
-        super().__init__(url=url, id=id, headers=headers, column=column)
+    def __init__(self, page, id, headers, column):
+        super().__init__(page=page, id=id, headers=headers, column=column)
 
     def to_searchable_string(self):
         base = " ".join(
             [
-                self.data["url"],
-                self.data["id"],
+                self.data["page"],
+                str(self.data["id"]),
                 self.data["headers"],
-                self.data["column"],
+                str(self.data["column"]),
             ]
         )
         return base
 
+    @property
+    def url(self):
+        return f"https://en.wikipedia.org/wiki/{self.data['page'].replace(' ', '_')}"
+
     def to_pyscript(self):
         commands = []
         commands.append(f"import pandas as pd")
-        commands.append(f'df = pd.read_html({self.data["url"]})[{self.data["id"]}]')
+        commands.append(f'df = pd.read_html({self.data["page"]})[{self.data["id"]}]')
         commands.append(f'df = df[["{self.data["column"]}"]]')
         return "\n".join(commands)

@@ -52,7 +52,9 @@
                 <div class="text l font-bold">{{ sketchpad.reference.data['dfname'] }}</div>
                 <div class="text l font-bold">{{ sketchpad.reference.data['col'] }}</div>
                 {% elif sketchpad.reference.type == 'WikipediaTableColumn' %}
-                <div class="text l font-bold">{{ sketchpad.reference.data['url'] }}</div>
+                <div class="text l font-bold">
+                    <a href="{{sketchpad.reference.url}}">{{ sketchpad.reference.data['page'] }}</a>
+                </div>
                 <div class="text l font-bold">{{ sketchpad.reference.data['column'] }}</div>
                 {% else %}
                 <div class="text l font-bold">Unknown</div>
