@@ -140,3 +140,5 @@ Thumbs.db
 
 *.db
 *.index
+
+*.parquet

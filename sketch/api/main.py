@@ -304,6 +304,7 @@ async def login_for_access_token(
     return token_response
 
 
+# TODO: rename this spectogram?
 @app.get("/cardinality_histogram")
 async def cardhisto(request: Request, user: auth.User = Depends(auth.get_browser_user)):
     pf = await data.get_portfolio(database, user.username)
@@ -328,8 +329,8 @@ async def cardhisto(request: Request, user: auth.User = Depends(auth.get_browser
                 "x", title="Unique Count", scale=alt.Scale(type="log", domainMin=1)
             ),
             # x2="x2",
-            # y=alt.Y("y", title="Number", scale=alt.Scale(type="log")),
-            y=alt.Y("y", title="Count"),
+            y=alt.Y("y", title="Number", scale=alt.Scale(type="log")),
+            # y=alt.Y("y", title="Count"),
         )
         .properties(width="container", height=300)
     )
