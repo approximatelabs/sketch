@@ -1,8 +1,7 @@
 import base64
 
 import datasketch
-
-# import datasketches
+import datasketches
 
 
 def active(func):

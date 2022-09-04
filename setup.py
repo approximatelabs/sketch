@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="sketch",
-    version="0.0.0",
+    version="0.0.1",
     author="Justin Waugh",
     author_email="justin@approximatelabs.com",
     description="Compute, store and operate on data sketches",
@@ -24,10 +24,10 @@ setuptools.setup(
         "python-jose>=3.3",
         "passlib>=1.7.4",
         "databases[aiosqlite]>=0.6",
-        "datasketches>=3.4.0",
         "datasketch>=1.5",
         "fastapi[all]>=0.79",
         "pyarrow>=8.0",
+        "whylogs>=1.0.12",
     ],
     keywords="data sketch model etl automatic join ai embedding profiling",
     project_urls={

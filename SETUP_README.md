@@ -21,6 +21,20 @@ pyenv virtualenv create sketch
 pyenv global sketch
 ```
 
+## Setup datasketches
+
+### https://github.com/apache/datasketches-cpp
+
+for on OSX, need to do a manual build and install, since `pip install` installs the wrong architecture versions. 
+
+```
+git clone ...
+make commands
+# ensure right environment
+python3 -m pip install .
+```
+
+
 ## Setup FAISS
 
 

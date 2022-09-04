@@ -133,6 +133,12 @@ class Portfolio:
             sp = SketchPad.from_series(pandas_df[col], reference)
             self.add_sketchpad(sp)
 
+    def get_sketchpad_by_reference_id(self, reference_id):
+        for sketchpad in self.sketchpads.values():
+            if sketchpad.reference.id == reference_id:
+                return sketchpad
+        return None
+
     def add_sqlite(self, sqlite_db_path):
         if sqlite_db_path.startswith("http"):
             os.system(f"wget -nc {sqlite_db_path} --directory-prefix={SKETCHCACHE} -q")
@@ -140,18 +146,19 @@ class Portfolio:
         else:
             path = sqlite_db_path
         conn = sqlite3.connect(path)
+        conn.text_factory = lambda b: b.decode(errors="ignore")
         # TODO: Consider using a cursor to avoid the need for this
         tables = pd.read_sql(
             "SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name;", conn
         )
         logging.info(f"Found {len(tables)} tables in file {sqlite_db_path}")
         for i, table in enumerate(tables.name):
-            for column in pd.read_sql(f"PRAGMA table_info('{table}')", conn).name:
-                query = f"SELECT '{column}' FROM '{table}'"
+            for column in pd.read_sql(f'PRAGMA table_info("{table}")', conn).name:
+                query = f'SELECT "{column}" FROM "{table}"'
                 reference = SqliteColumn(sqlite_db_path, query, column)
                 # consider iterator here
                 sp = SketchPad.from_series(
-                    pd.read_sql(query, conn)[f"'{column}'"],
+                    pd.read_sql(query, conn)[f"{column}"],
                     reference,
                 )
                 self.add_sketchpad(sp)
