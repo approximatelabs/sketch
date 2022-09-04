@@ -1,4 +1,5 @@
 import base64
+import json
 
 import datasketch
 import datasketches
@@ -24,13 +25,16 @@ class SketchBase:
 
     @classmethod
     def from_series(cls, series):
-        raise NotImplementedError(f"{cls.__name__}.from_series")
+        result = cls(data=cls.empty_data(), active=True)
+        for d in series:
+            result.add_row(d)
+        return result
 
     def pack(self):
         return self.data
 
-    @staticmethod
-    def unpack(data):
+    @classmethod
+    def unpack(cls, data):
         return data
 
     def to_dict(self):
@@ -44,14 +48,19 @@ class SketchBase:
     def from_dict(cls, data):
         tcls = cls
         if data["name"] != cls.__name__:
-            for subclass in cls.__subclasses__():
+            for subclass in cls.all_sketches():
                 if subclass.__name__ == data["name"]:
                     tcls = subclass
         return tcls(data=tcls.unpack(data["data"]))
 
     @classmethod
     def all_sketches(cls):
-        return list(cls.__subclasses__())
+        subclasses = cls.__subclasses__()
+        for subclass in list(subclasses):
+            subclasses.extend(subclass.all_sketches())
+        # filter
+        subclasses = [s for s in subclasses if s.__name__ != "DataSketchesSketchBase"]
+        return subclasses
 
     @classmethod
     def empty(cls):
@@ -112,8 +121,8 @@ class MinHash(SketchBase):
         self.data.serialize(buf)
         return base64.b64encode(buf).decode("utf-8")
 
-    @staticmethod
-    def unpack(data):
+    @classmethod
+    def unpack(cls, data):
         return datasketch.LeanMinHash.deserialize(base64.b64decode(data))
 
     @classmethod
@@ -143,10 +152,148 @@ class HyperLogLog(SketchBase):
         self.data.serialize(buf)
         return base64.b64encode(buf).decode("utf-8")
 
-    @staticmethod
-    def unpack(data):
+    @classmethod
+    def unpack(cls, data):
         return datasketch.HyperLogLogPlusPlus.deserialize(base64.b64decode(data))
 
     @classmethod
     def empty_data(cls):
         return datasketch.HyperLogLogPlusPlus()
+
+
+class DataSketchesSketchBase(SketchBase):
+    sketch_class = None
+    init_args = ()
+
+    @active
+    def add_row(self, row):
+        self.data.update(str(row).encode('utf-8'))
+
+    def pack(self):
+        return base64.b64encode(self.data.serialize()).decode("utf-8")
+
+    @classmethod
+    def unpack(cls, data):
+        return cls.sketch_class.deserialize(base64.b64decode(data))
+
+    @classmethod
+    def empty_data(cls):
+        return cls.sketch_class(*cls.init_args)
+
+
+class DS_HLL(DataSketchesSketchBase):
+    sketch_class = datasketches.hll_sketch
+    init_args = (12, datasketches.tgt_hll_type.HLL_8)
+
+    def pack(self):
+        return base64.b64encode(self.data.serialize_compact()).decode("utf-8")
+
+
+class DS_CPC(DataSketchesSketchBase):
+    sketch_class = datasketches.cpc_sketch
+    init_args = (12, )
+
+
+class DS_FI(DataSketchesSketchBase):
+    sketch_class = datasketches.frequent_strings_sketch
+    init_args = (10, )
+
+
+class DS_KLL(DataSketchesSketchBase):
+    sketch_class = datasketches.kll_floats_sketch
+    init_args = (160, )
+    @active
+    def add_row(self, row):
+        if isinstance(row, (int, float)):
+            self.data.update(row)
+
+
+class DS_Quantiles(DataSketchesSketchBase):
+    sketch_class = datasketches.quantiles_floats_sketch
+    init_args = (128, )
+
+    @active
+    def add_row(self, row):
+        if isinstance(row, (int, float)):
+            self.data.update(row)
+
+
+
+class DS_REQ(DataSketchesSketchBase):
+    sketch_class = datasketches.req_floats_sketch
+    init_args = (12,)
+
+    @active
+    def add_row(self, row):
+        if isinstance(row, (int, float)):
+            self.data.update(row)
+
+
+
+class DS_THETA(DataSketchesSketchBase):
+    sketch_class = datasketches.update_theta_sketch
+    init_args = (12,)
+
+    def pack(self):
+        try:
+            return base64.b64encode(self.data.compact().serialize()).decode("utf-8")
+        except AttributeError:
+            return base64.b64encode(self.data.serialize()).decode("utf-8")
+
+    @classmethod
+    def unpack(cls, data):
+        return datasketches.compact_theta_sketch.deserialize(base64.b64decode(data))
+
+# https://github.com/apache/datasketches-cpp/blob/master/python/tests/vo_test.py
+# Tried to use the serialize, but its not working, no serialize method on the sketch 
+# but it looks like its there in the repo, so might be a failure case of version?
+# class DS_VO(DataSketchesSketchBase):
+#     sketch_class = datasketches.var_opt_sketch
+#     init_args = (50,)
+
+#     @active
+#     def add_row(self, row):
+#         self.data.update(str(row).encode('utf-8'))
+
+#     def pack(self):
+#         return base64.b64encode(self.data.serialize(datasketch.PyStringsSerDe())).decode("utf-8")
+
+#     @classmethod
+#     def unpack(cls, data):
+#         return cls.sketch_class.deserialize(base64.b64decode(data), datasketch.PyStringsSerDe())
+
+class UnicodeMatches(SketchBase):
+    unicode_ranges = {
+            "emoticon": (0x1F600, 0x1F64F),
+            "control": (0x00, 0x1F),
+            "digits": (0x30, 0x39),
+            "latin-lower": (0x41, 0x5A),
+            "latin-upper": (0x61, 0x7A),
+            "basic-latin": (0x00, 0x7F),
+            "extended-latin": (0x0080, 0x02AF),
+            "UNKNOWN": (0x00, 0x00),
+        }
+
+
+    @active
+    def add_row(self, row):
+        if isinstance(row, str):
+            for c in row:
+                found = False
+                for name, (start, end) in self.unicode_ranges.items():
+                    if start <= ord(c) <= end:
+                        self.data[name] += 1
+                        found = True
+                if not found:
+                    self.data['UNKNOWN'] += 1
+
+    def pack(self):
+        return base64.b64encode(json.dumps(self.data).encode('utf-8')).decode("utf-8")
+
+    @classmethod
+    def unpack(cls, data):
+        return json.loads(base64.b64decode(data))
+
+    @classmethod
+    def empty_data(cls):
+        return {name: 0 for name in cls.unicode_ranges}

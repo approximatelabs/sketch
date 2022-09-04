@@ -7,6 +7,7 @@ import uuid
 
 import pandas as pd
 import requests
+from packaging import version
 
 from .references import (
     PandasDataframeColumn,
@@ -148,8 +149,9 @@ class Portfolio:
         conn = sqlite3.connect(path)
         conn.text_factory = lambda b: b.decode(errors="ignore")
         # TODO: Consider using a cursor to avoid the need for this
+        meta_name = 'sqlite_master' if version.parse(sqlite3.sqlite_version) < version.Version("3.33.0") else "sqlite_schema"
         tables = pd.read_sql(
-            "SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name;", conn
+            f"SELECT name FROM {meta_name} WHERE type='table' ORDER BY name;", conn
         )
         logging.info(f"Found {len(tables)} tables in file {sqlite_db_path}")
         for i, table in enumerate(tables.name):

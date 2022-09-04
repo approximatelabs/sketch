@@ -23,6 +23,11 @@ pyenv global sketch
 
 ## Setup datasketches
 
+### for others, 
+```
+pip install datasketches
+```
+
 ### https://github.com/apache/datasketches-cpp
 
 for on OSX, need to do a manual build and install, since `pip install` installs the wrong architecture versions. 
@@ -33,6 +38,7 @@ make commands
 # ensure right environment
 python3 -m pip install .
 ```
+
 
 
 ## Setup FAISS

@@ -337,10 +337,6 @@ async def cardhisto(request: Request, user: auth.User = Depends(auth.get_browser
     return chart.to_dict()
 
 
-# Bash command to convert all jupyter notebooks to have no output
-# find . -name "*.ipynb" -exec jupyter nbconvert --ClearOutputPreprocessor.enabled=True --inplace {} \;
-
-
 @app.get("/cardinality_history")
 async def cardinality_history(
     request: Request,

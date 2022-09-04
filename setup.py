@@ -27,7 +27,6 @@ setuptools.setup(
         "datasketch>=1.5",
         "fastapi[all]>=0.79",
         "pyarrow>=8.0",
-        "whylogs>=1.0.12",
     ],
     keywords="data sketch model etl automatic join ai embedding profiling",
     project_urls={
