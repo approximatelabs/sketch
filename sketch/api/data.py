@@ -311,7 +311,7 @@ async def get_most_recent_sketchpads_by_reference_short_ids(
     # select short_id, reference_id, sketchpad.id  from sketchpad left join _reference ON reference_id = _reference.id where (owner_username = 'justin') and (short_id IN (8366672332147158452, -799403208509921231)) group by reference_id, owner_username having upload_at = MIN(upload_at) order by upload_at desc;
     query = f"""
         SELECT
-            sketchpad.data
+            short_id, sketchpad.data
         FROM sketchpad
         LEFT JOIN _reference ON reference_id = _reference.id
         WHERE 
@@ -321,10 +321,9 @@ async def get_most_recent_sketchpads_by_reference_short_ids(
         GROUP BY
             reference_id, owner_username
         HAVING upload_at = MIN(upload_at)
-        ORDER BY upload_at DESC;
     """
-    async for d, in db.iterate(
+    async for short_id, d, in db.iterate(
         query,
         values={"user": user, **{str(i): str(d) for i, d in enumerate(short_ids)}},
     ):
-        yield SketchPad.from_dict(json.loads(d))
+        yield short_id, SketchPad.from_dict(json.loads(d))

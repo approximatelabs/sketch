@@ -29,8 +29,7 @@ class Reference:
             "data": self.data,
         }
 
-    @classmethod
-    def to_json(cls, self):
+    def to_json(self):
         return json.dumps(self.to_dict())
 
     @classmethod

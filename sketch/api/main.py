@@ -258,12 +258,13 @@ async def search(
         index = app.index
         D, I = index.search(query_vector, 5)
         indexes = list(I[0])
-        sketchpads = [
-            x
-            async for x in data.get_most_recent_sketchpads_by_reference_short_ids(
+        sketchpads = {
+            i: x
+            async for i, x in data.get_most_recent_sketchpads_by_reference_short_ids(
                 database, indexes, user.username
             )
-        ]
+        }
+        sketchpads = [sketchpads[i] for i in indexes]
         pf = Portfolio(sketchpads=sketchpads)
     else:
         pf = Portfolio()
