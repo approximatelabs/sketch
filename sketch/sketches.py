@@ -247,6 +247,9 @@ class DS_THETA(DataSketchesSketchBase):
 # https://github.com/apache/datasketches-cpp/blob/master/python/tests/vo_test.py
 # Tried to use the serialize, but its not working, no serialize method on the sketch 
 # but it looks like its there in the repo, so might be a failure case of version?
+# NOTE: This worked fine on M1 (the serialize method was there), but not on x86_64
+#       Seems to be related to compiling the datasketches library (rather than pip install)
+
 # class DS_VO(DataSketchesSketchBase):
 #     sketch_class = datasketches.var_opt_sketch
 #     init_args = (50,)
