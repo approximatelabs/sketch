@@ -9,6 +9,7 @@ import pandas as pd
 import requests
 from packaging import version
 
+from .metrics import binary_metrics, unary_metrics
 from .references import (
     PandasDataframeColumn,
     Reference,
@@ -98,6 +99,12 @@ class SketchPad:
         sp.sketches = [SketchBase.from_dict(s) for s in data["sketches"]]
         return sp
 
+    def get_metrics(self):
+        return unary_metrics(self)
+
+    def get_cross_metrics(self, other):
+        return binary_metrics(self, other)
+
 
 class Portfolio:
     def __init__(self, sketchpads=None):
@@ -149,7 +156,11 @@ class Portfolio:
         conn = sqlite3.connect(path)
         conn.text_factory = lambda b: b.decode(errors="ignore")
         # TODO: Consider using a cursor to avoid the need for this
-        meta_name = 'sqlite_master' if version.parse(sqlite3.sqlite_version) < version.Version("3.33.0") else "sqlite_schema"
+        meta_name = (
+            "sqlite_master"
+            if version.parse(sqlite3.sqlite_version) < version.Version("3.33.0")
+            else "sqlite_schema"
+        )
         tables = pd.read_sql(
             f"SELECT name FROM {meta_name} WHERE type='table' ORDER BY name;", conn
         )

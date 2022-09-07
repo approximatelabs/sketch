@@ -6,6 +6,10 @@ def unary_metrics(sketchpad):
     # get metrics for a single sketchpad
     # return a vector of metrics
     metrics = {}
+
+    metrics["rows"] = sketchpad.get_sketchdata_by_name("Rows")
+    metrics["count"] = sketchpad.get_sketchdata_by_name("Count")
+
     ds = sketchpad.get_sketchdata_by_name("DS_HLL")
 
     metrics["hll_lower_bound_2"] = ds.get_lower_bound(2)
