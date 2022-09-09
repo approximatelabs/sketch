@@ -250,20 +250,20 @@ class DS_THETA(DataSketchesSketchBase):
 # NOTE: This worked fine on M1 (the serialize method was there), but not on x86_64
 #       Seems to be related to compiling the datasketches library (rather than pip install)
 
-# class DS_VO(DataSketchesSketchBase):
-#     sketch_class = datasketches.var_opt_sketch
-#     init_args = (50,)
+class DS_VO(DataSketchesSketchBase):
+    sketch_class = datasketches.var_opt_sketch
+    init_args = (50,)
 
-#     @active
-#     def add_row(self, row):
-#         self.data.update(str(row).encode('utf-8'))
+    @active
+    def add_row(self, row):
+        self.data.update(str(row))
 
-#     def pack(self):
-#         return base64.b64encode(self.data.serialize(datasketch.PyStringsSerDe())).decode("utf-8")
+    def pack(self):
+        return base64.b64encode(self.data.serialize(datasketches.PyStringsSerDe())).decode("utf-8")
 
-#     @classmethod
-#     def unpack(cls, data):
-#         return cls.sketch_class.deserialize(base64.b64decode(data), datasketch.PyStringsSerDe())
+    @classmethod
+    def unpack(cls, data):
+        return cls.sketch_class.deserialize(base64.b64decode(data), datasketches.PyStringsSerDe())
 
 class UnicodeMatches(SketchBase):
     unicode_ranges = {
