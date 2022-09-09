@@ -220,8 +220,8 @@ async def sketchpad(
 def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
-        yield lst[i:i + n]
-    
+        yield lst[i : i + n]
+
 
 @app.get("/refresh_index")
 async def refresh_index(
@@ -230,18 +230,25 @@ async def refresh_index(
     import time
 
     from sentence_transformers import SentenceTransformer
+
+    global local_cache
+    local_cache = {}
+
     model = SentenceTransformer("all-MiniLM-L6-v2")
     # # iterate over references, and add to index
     # short_ids, references = zip(*[x async for x in data.get_references(database)])
     # embeddings = model.encode([r.to_searchable_string() for r in references])
 
     sketchpad_sentences, short_ids = [], []
-    
+
     # TODO: replace this with logger
     st = time.time()
     print(f"{time.time()}  Rebuilding index... gathering sketchpads")
     async for sketchpad in data.get_sketchpads(database, user.username):
-        sketchpad_sentences.append(sketchpad.reference.to_searchable_string() + strings_from_sketchpad_sketches(sketchpad))
+        sketchpad_sentences.append(
+            sketchpad.reference.to_searchable_string()
+            + strings_from_sketchpad_sketches(sketchpad)
+        )
         short_ids.append(sketchpad.reference.short_id)
         if len(sketchpad_sentences) % 500 == 0:
             print(len(sketchpad_sentences))
@@ -316,8 +323,10 @@ async def apple(request: Request, user: auth.User = Depends(auth.get_browser_use
 
 @app.get("/")
 async def root(request: Request, user: auth.User = Depends(auth.get_browser_user)):
+    if f"root-{user.username}" in local_cache:
+        return local_cache[f"root-{user.username}"]
     pf = await data.get_portfolio(database, user.username)
-    return templates.TemplateResponse(
+    local_cache[f"root-{user.username}"] = templates.TemplateResponse(
         "page/root.html",
         {
             "request": request,
@@ -325,6 +334,7 @@ async def root(request: Request, user: auth.User = Depends(auth.get_browser_user
             "user": user,
         },
     )
+    return local_cache[f"root-{user.username}"]
 
 
 @app.post("/token")
@@ -337,6 +347,8 @@ async def login_for_access_token(
 # TODO: rename this spectogram?
 @app.get("/cardinality_histogram")
 async def cardhisto(request: Request, user: auth.User = Depends(auth.get_browser_user)):
+    if f"cardhisto-{user.username}" in local_cache:
+        return local_cache[f"cardhisto-{user.username}"]
     pf = await data.get_portfolio(database, user.username)
 
     cards = np.array(
@@ -364,7 +376,8 @@ async def cardhisto(request: Request, user: auth.User = Depends(auth.get_browser
         )
         .properties(width="container", height=300)
     )
-    return chart.to_dict()
+    local_cache[f"cardhisto-{user.username}"] = chart.to_dict()
+    return local_cache[f"cardhisto-{user.username}"]
 
 
 @app.get("/cardinality_history")
@@ -396,6 +409,8 @@ async def cardinality_history(
 async def upload_sketchpad(
     sketchpad: models.SketchPad, user: auth.User = Depends(auth.get_token_user)
 ):
+    global local_cache
+    local_cache = {}
     # Ensure sketchpad parses correctly
     SketchPad.from_dict(sketchpad.dict())
     # add the pydantic sketchpad directly to database
