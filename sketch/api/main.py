@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from ..core import Portfolio, SketchPad
+from ..metrics import strings_from_sketchpad_sketches
 from . import auth, data, models
 from .deps import *
 
@@ -216,30 +217,58 @@ async def sketchpad(
     )
 
 
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
+    
+
 @app.get("/refresh_index")
 async def refresh_index(
     request: Request, user: auth.User = Depends(auth.get_browser_user)
 ):
+    import time
+
     from sentence_transformers import SentenceTransformer
-
     model = SentenceTransformer("all-MiniLM-L6-v2")
-    # iterate over references, and add to index
-    short_ids, references = zip(*[x async for x in data.get_references(database)])
-    embeddings = model.encode([r.to_searchable_string() for r in references])
+    # # iterate over references, and add to index
+    # short_ids, references = zip(*[x async for x in data.get_references(database)])
+    # embeddings = model.encode([r.to_searchable_string() for r in references])
 
+    sketchpad_sentences, short_ids = [], []
+    
+    # TODO: replace this with logger
+    st = time.time()
+    print(f"{time.time()}  Rebuilding index... gathering sketchpads")
+    async for sketchpad in data.get_sketchpads(database, user.username):
+        sketchpad_sentences.append(sketchpad.reference.to_searchable_string() + strings_from_sketchpad_sketches(sketchpad))
+        short_ids.append(sketchpad.reference.short_id)
+        if len(sketchpad_sentences) % 500 == 0:
+            print(len(sketchpad_sentences))
+    print(f"{time.time()}  Rebuilding index... generating embeddings")
+    # do in batches and print out batches
+    embeddings = []
+    for chunk in chunks(sketchpad_sentences, 500):
+        embeddings.append(model.encode(chunk))
+        print(f"{time.time()}... {(len(embeddings)+1)*500}")
+    embeddings = np.concatenate(embeddings)
+    print(f"{time.time()}  Rebuilding index... building index")
     # see https://github.com/facebookresearch/faiss/blob/main/benchs/bench_hnsw.py
 
     # index = faiss.IndexFlatL2(embeddings.shape[1])
     index = faiss.IndexHNSWFlat(embeddings.shape[1], 32)
     index.hnsw.efConstruction = 40
     index2 = faiss.IndexIDMap(index)
+    print("adding short_ids as reference")
     index2.add_with_ids(
         embeddings,
         np.array(short_ids, dtype=np.int64),
     )
     global app
     app.index = index2
+    print("saving index...")
     faiss.write_index(index2, os.path.join(settings.faiss_path, "trained.index"))
+    print("done and saved... took ", time.time() - st)
     return "Okay..."
 
 

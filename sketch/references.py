@@ -54,6 +54,12 @@ class Reference:
         data = json.loads(json_str)
         return cls.from_dict(data)
 
+    @property
+    def short_id(self):
+        return int.from_bytes(
+                bytes.fromhex(self.id[:16]), "big", signed=True
+            )
+
 
 # TODO: make the subclasses of Reference have smarter args
 # possibly make them a dataclass

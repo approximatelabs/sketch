@@ -2,6 +2,20 @@ import datasketches
 from scipy.interpolate import interp1d
 
 
+def strings_from_sketchpad_sketches(sketchpad):
+    # FI and VO are the two
+    output = ""
+    ds = sketchpad.get_sketchdata_by_name("DS_FI")
+    # consider showing the counts of frequent items?? Might be useful information.
+    output += " ".join([x[0] for x in ds.get_frequent_items(datasketches.frequent_items_error_type.NO_FALSE_POSITIVES)])
+    output += "\n"
+    output += " ".join([x[0] for x in ds.get_frequent_items(datasketches.frequent_items_error_type.NO_FALSE_NEGATIVES)])
+    output += "\n"
+    ds = sketchpad.get_sketchdata_by_name("DS_VO")
+    output += " ".join([x[0] for x in ds.get_samples()])
+    return output
+
+
 def unary_metrics(sketchpad):
     # get metrics for a single sketchpad
     # return a vector of metrics

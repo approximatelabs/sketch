@@ -39,6 +39,10 @@ make commands
 python3 -m pip install .
 ```
 
+```
+cmake -S . -B build/Release -DCMAKE_BUILD_TYPE=Release
+```
+
 
 
 ## Setup FAISS

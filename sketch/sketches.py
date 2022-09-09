@@ -244,11 +244,24 @@ class DS_THETA(DataSketchesSketchBase):
     def unpack(cls, data):
         return datasketches.compact_theta_sketch.deserialize(base64.b64decode(data))
 
-# https://github.com/apache/datasketches-cpp/blob/master/python/tests/vo_test.py
-# Tried to use the serialize, but its not working, no serialize method on the sketch 
-# but it looks like its there in the repo, so might be a failure case of version?
-# NOTE: This worked fine on M1 (the serialize method was there), but not on x86_64
-#       Seems to be related to compiling the datasketches library (rather than pip install)
+
+class PyUnicodeStringsSerDe(datasketches.PyObjectSerDe):
+  def get_size(self, item):
+    return int(4 + len(item.encode('utf-8')))
+
+  def to_bytes(self, item: str):
+    b = bytearray()
+    b.extend(len(item.encode('utf-8')).to_bytes(4, 'little'))
+    b.extend(item.encode('utf-8'))
+    return bytes(b)
+
+  def from_bytes(self, data: bytes, offset: int):
+    num_chars = int.from_bytes(data[offset:offset+3], 'little')
+    if (num_chars < 0 or num_chars > offset + len(data)):
+        raise IndexError(f'num_chars read must be non-negative and not larger than the buffer. Found {num_chars}')
+    str = data[offset+4:offset+4+num_chars].decode('utf-8')
+    return (str, 4+num_chars)
+
 
 class DS_VO(DataSketchesSketchBase):
     sketch_class = datasketches.var_opt_sketch
@@ -259,11 +272,11 @@ class DS_VO(DataSketchesSketchBase):
         self.data.update(str(row))
 
     def pack(self):
-        return base64.b64encode(self.data.serialize(datasketches.PyStringsSerDe())).decode("utf-8")
+        return base64.b64encode(self.data.serialize(PyUnicodeStringsSerDe())).decode("utf-8")
 
     @classmethod
     def unpack(cls, data):
-        return cls.sketch_class.deserialize(base64.b64decode(data), datasketches.PyStringsSerDe())
+        return cls.sketch_class.deserialize(base64.b64decode(data), PyUnicodeStringsSerDe())
 
 class UnicodeMatches(SketchBase):
     unicode_ranges = {

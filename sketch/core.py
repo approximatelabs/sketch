@@ -9,7 +9,7 @@ import pandas as pd
 import requests
 from packaging import version
 
-from .metrics import binary_metrics, unary_metrics
+from .metrics import binary_metrics, strings_from_sketchpad_sketches, unary_metrics
 from .references import (
     PandasDataframeColumn,
     Reference,
@@ -104,6 +104,9 @@ class SketchPad:
 
     def get_cross_metrics(self, other):
         return binary_metrics(self, other)
+
+    def string_value_representation(self):
+        return strings_from_sketchpad_sketches(self)
 
 
 class Portfolio:

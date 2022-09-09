@@ -256,17 +256,13 @@ async def get_portfolio(db: Database, user: str = None):
     return Portfolio(sketchpads=sketchpads)
 
 
-async def ensure_reference(db: Database, reference: Reference):
+async def ensure_reference(db: Database, reference):
     query = "INSERT OR IGNORE INTO _reference (id, short_id, data, type) VALUES (:id, :short_id, :data, :type);"
     to_save = reference.dict()
     to_save.update({"data": json.dumps(reference.data)})
-    to_save.update(
-        {
-            "short_id": int.from_bytes(
+    to_save.update({"short_id": int.from_bytes(
                 bytes.fromhex(reference.id[:16]), "big", signed=True
-            )
-        }
-    )
+            ) })
     await db.execute(query, values=to_save)
 
 
