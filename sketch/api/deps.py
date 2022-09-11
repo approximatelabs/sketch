@@ -16,3 +16,5 @@ settings = Settings()
 database = Database(
     settings.db_url,
 )
+
+local_cache = {}
