@@ -180,6 +180,17 @@ async def references(
     )
 
 
+@app.get("/chat")
+async def chat(request: Request, user: auth.User = Depends(auth.get_browser_user)):
+    return templates.TemplateResponse(
+        "page/chat.html",
+        {
+            "request": request,
+            "user": user,
+        },
+    )
+
+
 @app.get("/reference/{reference_id}")
 async def reference(
     request: Request,
