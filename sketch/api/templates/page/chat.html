@@ -38,9 +38,14 @@
 </div>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 <script>
+    function isLocalhost(url) {
+        return url.includes('localhost') || url.includes('127.0.0.1');
+    }
+
     // TODO: I should get rid of the jquery... just use vanilla...
     $(document).ready(function () {
-        var socket = new WebSocket("wss://" + location.host + "/ws/chat");
+        var url = (isLocalhost(location.host) ? "ws://" : "wss://") + location.host + "/ws/chat";
+        var socket = new WebSocket(url);
         socket.onmessage = function (event) {
             var data = JSON.parse(event.data);
             $("#block").append(`<p><b>${data.sender}:</b>${data.message}</p>`);
