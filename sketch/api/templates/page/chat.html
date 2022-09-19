@@ -40,7 +40,7 @@
 <script>
     // TODO: I should get rid of the jquery... just use vanilla...
     $(document).ready(function () {
-        var socket = new WebSocket("ws://" + location.host + "/ws/chat");
+        var socket = new WebSocket("wss://" + location.host + "/ws/chat");
         socket.onmessage = function (event) {
             var data = JSON.parse(event.data);
             $("#block").append(`<p><b>${data.sender}:</b>${data.message}</p>`);
