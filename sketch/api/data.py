@@ -1,4 +1,5 @@
 import json
+import uuid
 
 from databases import Database
 from fastapi import Request
@@ -114,9 +115,50 @@ async def migration_1(db: Database):
             FOREIGN KEY(id) REFERENCES sketchpad(id)
         ) WITHOUT ROWID;
         """,
+        """
+        CREATE TABLE messages (
+            id TEXT NOT NULL PRIMARY KEY,
+            thread_id TEXT NOT NULL,
+            data TEXT NOT NULL,
+            upload_at TEXT,
+            owner_username TEXT,
+            FOREIGN KEY(owner_username) REFERENCES user(username)
+        ) WITHOUT ROWID;
+        """,
     ]
     for query in queries:
         await db.execute(query)
+
+
+async def add_message(db: Database, thread_id, data, owner_username):
+    query = """
+        INSERT OR IGNORE INTO messages (id, thread_id, data, upload_at, owner_username)
+        VALUES (:id, :thread_id, :data, CURRENT_TIMESTAMP, :owner_username);
+    """
+    await db.execute(
+        query,
+        values={
+            "id": str(uuid.uuid4().hex),
+            "thread_id": str(thread_id),
+            "data": json.dumps(data),
+            "owner_username": owner_username,
+        },
+    )
+
+
+async def get_messages(db: Database, thread_id):
+    query = """
+        SELECT
+            data,
+            upload_at
+        FROM messages
+        WHERE 
+            (thread_id = :thread_id)
+        ORDER BY upload_at ASC
+    """
+    messages = await db.fetch_all(query, values={"thread_id": thread_id})
+    messages = [(json.loads(x), y) for x, y in messages]
+    return messages
 
 
 async def add_user(db: Database, username, full_name, email, hashed_password):
@@ -260,9 +302,13 @@ async def ensure_reference(db: Database, reference):
     query = "INSERT OR IGNORE INTO _reference (id, short_id, data, type) VALUES (:id, :short_id, :data, :type);"
     to_save = reference.dict()
     to_save.update({"data": json.dumps(reference.data)})
-    to_save.update({"short_id": int.from_bytes(
+    to_save.update(
+        {
+            "short_id": int.from_bytes(
                 bytes.fromhex(reference.id[:16]), "big", signed=True
-            ) })
+            )
+        }
+    )
     await db.execute(query, values=to_save)
 
 

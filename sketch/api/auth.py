@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from fastapi import Depends, HTTPException, Request, Response, status
+from fastapi import Depends, HTTPException, Request, Response, WebSocket, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.security.oauth2 import (
@@ -62,7 +62,6 @@ class OAuth2PasswordBearerWithCookie(OAuth2):
         super().__init__(flows=flows, scheme_name=scheme_name, auto_error=auto_error)
 
     async def __call__(self, request: Request) -> Optional[str]:
-        # first check headers
         authorization: str = request.headers.get("Authorization")
         if not authorization:
             authorization: str = request.cookies.get("Authorization")
@@ -80,7 +79,37 @@ class OAuth2PasswordBearerWithCookie(OAuth2):
         return param
 
 
+class OAuth2PasswordBearerWithCookieWebsocket(OAuth2):
+    def __init__(
+        self,
+        tokenUrl: str,
+        scheme_name: str = None,
+        scopes: dict = None,
+        auto_error: bool = True,
+    ):
+        if not scopes:
+            scopes = {}
+        flows = OAuthFlowsModel(password={"tokenUrl": tokenUrl, "scopes": scopes})
+        super().__init__(flows=flows, scheme_name=scheme_name, auto_error=auto_error)
+
+    async def __call__(self, websocket: WebSocket) -> Optional[str]:
+        authorization = websocket.cookies.get("Authorization")
+        scheme, param = get_authorization_scheme_param(authorization)
+        if not authorization or scheme.lower() != "bearer":
+            if self.auto_error:
+                raise HTTPException(
+                    status_code=HTTP_401_UNAUTHORIZED,
+                    detail="Not authenticated",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            else:
+                return None
+
+        return param
+
+
 oauth2_scheme = OAuth2PasswordBearerWithCookie(tokenUrl="token")
+oauth2_scheme_websocket = OAuth2PasswordBearerWithCookieWebsocket(tokenUrl="token")
 
 
 def verify_password(plain_password, hashed_password):
@@ -121,7 +150,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 
-async def get_user(request: Request, token: str = Depends(oauth2_scheme)):
+async def get_user_from_token(token):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -154,6 +183,14 @@ async def get_user(request: Request, token: str = Depends(oauth2_scheme)):
     return user
 
 
+async def get_user(token: str = Depends(oauth2_scheme)):
+    return await get_user_from_token(token)
+
+
+async def get_websocket_user(token: str = Depends(oauth2_scheme_websocket)):
+    return await get_user_from_token(token)
+
+
 async def get_token_user(current_user: User = Depends(get_user)):
     if not current_user.is_token:
         raise HTTPException(status_code=400, detail="Inactive user")
@@ -173,7 +210,6 @@ async def logout():
 
 
 async def login_for_access_token(
-    request: Request,
     response: Response,
     redirect_uri: str = None,
     form_data: OAuth2PasswordRequestForm = Depends(),

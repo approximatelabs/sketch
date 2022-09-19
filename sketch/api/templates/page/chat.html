@@ -23,7 +23,7 @@
                     </path>
                 </svg>
             </button>
-            <button id="send-button" type="button" onClick="sendChat()"
+            <button id="send-button" type="button"
                 class="inline-flex items-center justify-center rounded-lg px-4 py-3 transition duration-500 ease-in-out text-white bg-blue-500 hover:bg-blue-400 focus:outline-none">
                 <span class="font-bold">Send</span>
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
@@ -36,22 +36,33 @@
         </div>
     </div>
 </div>
-
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
 <script>
-    document.getElementById('file-upload-button').addEventListener('click', function () {
-        document.getElementById('file-input').click();
+    // TODO: I should get rid of the jquery... just use vanilla...
+    $(document).ready(function () {
+        var socket = new WebSocket("ws://" + location.host + "/ws/chat");
+        socket.onmessage = function (event) {
+            var data = JSON.parse(event.data);
+            $("#block").append(`<p><b>${data.sender}:</b>${data.message}</p>`);
+        };
+        $("#file-upload-button").click(function () {
+            $("#file-input").click();
+        });
+        $("#chat-input").keypress(function (e) {
+            if (e.which == 13) {
+                e.preventDefault();
+                $("#send-button").click();
+            }
+        });
+        $("#send-button").click(function () {
+            var message = $("#chat-input").val();
+            if (message == "") {
+                return;
+            }
+            socket.send(JSON.stringify({ message }));
+            $("#chat-input").val("");
+        });
     });
-    document.getElementById('chat-input').addEventListener("keypress", function (event) {
-        if (event.key === "Enter") {
-            event.preventDefault();
-            document.getElementById("send-button").click();
-        }
-    });
-    function sendChat() {
-        text = document.getElementById("block");
-        text.innerHTML += "<p>" + document.getElementById("chat-input").value + "</p>";
-        document.getElementById("chat-input").value = "";
-    }
 </script>
 
 {% endblock %}

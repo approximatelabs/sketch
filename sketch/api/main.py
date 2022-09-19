@@ -11,7 +11,15 @@ import arel
 import faiss
 import numpy as np
 import pandas as pd
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import (
+    Depends,
+    FastAPI,
+    HTTPException,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -103,6 +111,13 @@ async def setup_index():
                 "justin@approximatelabs.com",
                 "$2b$12$xbAAbEMA8UY8iloOrVTxmuDHPbwmpX0TzLNtjHr8BCmFIZvSMVc2.",
             )
+            await data.add_user(
+                database,
+                "mike",
+                "James?",
+                "mike@approximatelabs.com",
+                "$2b$12$xbAAbEMA8UY8iloOrVTxmuDHPbwmpX0TzLNtjHr8BCmFIZvSMVc2.",
+            )
             await data.add_apikey(
                 database,
                 "justin",
@@ -189,6 +204,31 @@ async def chat(request: Request, user: auth.User = Depends(auth.get_browser_user
             "user": user,
         },
     )
+
+
+@app.websocket("/ws/chat")
+async def chat_socket(
+    websocket: WebSocket,
+    user: auth.User = Depends(auth.get_websocket_user),
+):
+    thread_id = "default"
+    if user.username:
+        await manager.connect(thread_id, websocket, user.username)
+        # gather all responses
+        messages = await data.get_messages(database, thread_id)
+        for messagedata, datetime in messages:
+            await manager.broadcast(thread_id, messagedata)
+        try:
+            while True:
+                wsdata = await websocket.receive_json()
+                wsdata.update({"sender": user.username})
+                await data.add_message(database, thread_id, wsdata, user.username)
+                await manager.broadcast(thread_id, wsdata)
+        except WebSocketDisconnect:
+            manager.disconnect(thread_id, websocket, user.username)
+            await manager.broadcast(
+                thread_id, {"message": "left", "sender": user.username}
+            )
 
 
 @app.get("/reference/{reference_id}")
