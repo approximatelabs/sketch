@@ -118,10 +118,24 @@ async def setup_index():
                 "mike@approximatelabs.com",
                 "$2b$12$xbAAbEMA8UY8iloOrVTxmuDHPbwmpX0TzLNtjHr8BCmFIZvSMVc2.",
             )
+            await data.add_user(
+                database,
+                "datAI",
+                "the AI",
+                "ai@approximatelabs.com",
+                "$2b$12$xbAAbEMA8UY8iloOrVTxmuDHPbwmpX0TzLNtjHr8BCmFIZvSMVc2.",
+            )
             await data.add_apikey(
                 database,
                 "justin",
                 "8f79be2b6d0d47ccb8192e46f38c80ce",
+                "hello",
+                "2025-01-01T00:00:00Z",
+            )
+            await data.add_apikey(
+                database,
+                "datAI",
+                "5a3556bb2de44a73ab2e5643cb633a6c",
                 "hello",
                 "2025-01-01T00:00:00Z",
             )
@@ -206,28 +220,42 @@ async def chat(request: Request, user: auth.User = Depends(auth.get_browser_user
     )
 
 
+@externalApiApp.get("/get_thread_ids")
+async def get_thread_ids(
+    request: Request, user: auth.User = Depends(auth.get_token_user)
+):
+    return await data.get_thread_ids(database)
+
+
 @app.websocket("/ws/chat")
 async def chat_socket(
     websocket: WebSocket,
     user: auth.User = Depends(auth.get_websocket_user),
+    thread_id: str = "default",
 ):
-    thread_id = "default"
     if user.username:
         await manager.connect(thread_id, websocket, user.username)
         # gather all responses
         messages = await data.get_messages(database, thread_id)
         for messagedata, datetime in messages:
-            await manager.broadcast(thread_id, messagedata)
+            messagedata.update({"datetime": datetime, "replay": True})
+            await websocket.send_json(messagedata)
+        await manager.broadcast(
+            thread_id, {"message": "joined", "sender": user.username, "meta": True}
+        )
         try:
             while True:
                 wsdata = await websocket.receive_json()
+                if wsdata["message"] == "sudo clear thread":
+                    await data.clear_thread(database, thread_id)
+                    continue
                 wsdata.update({"sender": user.username})
                 await data.add_message(database, thread_id, wsdata, user.username)
                 await manager.broadcast(thread_id, wsdata)
         except WebSocketDisconnect:
             manager.disconnect(thread_id, websocket, user.username)
             await manager.broadcast(
-                thread_id, {"message": "left", "sender": user.username}
+                thread_id, {"message": "left", "sender": user.username, "meta": True}
             )
 
 

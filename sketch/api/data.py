@@ -161,6 +161,25 @@ async def get_messages(db: Database, thread_id):
     return messages
 
 
+async def get_thread_ids(db: Database):
+    query = """
+        SELECT DISTINCT thread_id
+        FROM messages
+    """
+    thread_ids = await db.fetch_all(query)
+    thread_ids = [x for x, in thread_ids]
+    return thread_ids
+
+
+async def clear_thread(db: Database, thread_id):
+    query = """
+        DELETE FROM messages
+        WHERE
+            (thread_id = :thread_id)
+    """
+    await db.execute(query, values={"thread_id": thread_id})
+
+
 async def add_user(db: Database, username, full_name, email, hashed_password):
     query = """
         INSERT OR IGNORE INTO user (username, full_name, email, hashed_password)

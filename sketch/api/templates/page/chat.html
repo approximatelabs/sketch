@@ -44,7 +44,7 @@
 
     // TODO: I should get rid of the jquery... just use vanilla...
     $(document).ready(function () {
-        var url = (isLocalhost(location.host) ? "ws://" : "wss://") + location.host + "/ws/chat";
+        var url = (isLocalhost(location.host) ? "ws://" : "wss://") + location.host + "/ws/chat" + location.search;
         var socket = new WebSocket(url);
         socket.onmessage = function (event) {
             var data = JSON.parse(event.data);
