@@ -227,6 +227,43 @@ async def get_thread_ids(
     return await data.get_thread_ids(database)
 
 
+@app.get("/history")
+async def history(request: Request, user: auth.User = Depends(auth.get_browser_user)):
+    return templates.TemplateResponse(
+        "page/promptHistory.html",
+        {
+            "request": request,
+            "user": user,
+        },
+    )
+
+
+@app.get("/promptHistory")
+async def getPromptHistory(
+    request: Request, user: auth.User = Depends(auth.get_browser_user)
+):
+    return [
+        {
+            "id": 17,
+            "time": "2022-09-23T16:06:42+00:00",
+            "inputs": [
+                {"name": "apple", "value": "Apples are very warm when baked."},
+                {"name": "innerMonologue", "value": "I'm hungry"},
+            ],
+            "output": "Mmm, food tastes good.",
+        },
+        {
+            "id": 18,
+            "time": "2022-09-23T16:06:55+00:00",
+            "inputs": [
+                {"name": "apple", "value": "Apples are very cold when frozen."},
+                {"name": "innerMonologue", "value": "I'm hungry"},
+            ],
+            "output": "Crunchy frozen apples, come and get 'em!",
+        },
+    ]
+
+
 @app.websocket("/ws/chat")
 async def chat_socket(
     websocket: WebSocket,
