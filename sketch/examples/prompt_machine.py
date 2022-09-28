@@ -26,7 +26,7 @@ PM_SETTINGS = {
     "VERBOSE": True,
     "openai_api_key": os.environ.get("OPENAI_API_KEY"),
 }
-PM_SETTINGS['uri'] = f"wss://www.approx.dev/ws/chat?thread_id={PM_SETTINGS['THREAD_ID']}",
+PM_SETTINGS['uri'] = f"wss://www.approx.dev/ws/chat?thread_id={PM_SETTINGS['THREAD_ID']}"
 
 env = Environment()
 
