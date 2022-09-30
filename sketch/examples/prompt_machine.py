@@ -19,23 +19,25 @@ load_dotenv()
 
 
 PM_SETTINGS = {
-    "BOT_TOKEN": "5a3556bb2de44a73ab2e5643cb633a6c", 
+    "BOT_TOKEN": "5a3556bb2de44a73ab2e5643cb633a6c",
     "THREAD_ID": "default",
     "DB_PATH": "../datasets/nba_sql.db",
     "LOCAL_HISTORY_DB": "sqlite+aiosqlite:///promptHistory.db",
     "VERBOSE": True,
     "openai_api_key": os.environ.get("OPENAI_API_KEY"),
 }
-PM_SETTINGS['uri'] = f"wss://www.approx.dev/ws/chat?thread_id={PM_SETTINGS['THREAD_ID']}"
+PM_SETTINGS[
+    "uri"
+] = f"wss://www.approx.dev/ws/chat?thread_id={PM_SETTINGS['THREAD_ID']}"
 
 env = Environment()
 
 
 def get_gpt3_response(prompt, temperature=0, stop=None):
-    if not PM_SETTINGS['openai_api_key']:
+    if not PM_SETTINGS["openai_api_key"]:
         raise Exception("No OpenAI API key found")
     # print the prompt if verbose mode
-    if PM_SETTINGS['VERBOSE']:
+    if PM_SETTINGS["VERBOSE"]:
         print(prompt)
     headers = {
         "Authorization": f"Bearer {PM_SETTINGS['openai_api_key']}",
@@ -46,6 +48,8 @@ def get_gpt3_response(prompt, temperature=0, stop=None):
         "max_tokens": 500,
         "temperature": temperature,
         "model": "text-davinci-002",
+        "presence_penalty": 0.4,
+        "frequency_penalty": 0.4,
     }
     if stop:
         data["stop"] = stop
@@ -189,8 +193,9 @@ async def get_prompts(db: Database, prompt_name: str, n=5):
     return [(json.loads(inputs), response) for inputs, response in result]
 
 
-database = Database(PM_SETTINGS['LOCAL_HISTORY_DB'])
+database = Database(PM_SETTINGS["LOCAL_HISTORY_DB"])
 asyncio.create_task(setup_database(database))
+
 
 class Prompt:
     # prompts are functions that take in inputs and output strings
@@ -207,7 +212,7 @@ class Prompt:
         st = time.time()
         response = self.execute(*args, **kwargs)
         et = time.time()
-        if PM_SETTINGS['VERBOSE']:
+        if PM_SETTINGS["VERBOSE"]:
             print_prompt_json(
                 self.id,
                 self.name,
@@ -249,7 +254,9 @@ class GPT3Prompt(Prompt):
         if len(args) > 0:
             # also consider mixing kwargs and args
             # also consider partial parsing with kwargs first, then applying remaining named args
-            return self.get_prompt(**{n: a for n, a in  zip(self.get_named_args(), args)})
+            return self.get_prompt(
+                **{n: a for n, a in zip(self.get_named_args(), args)}
+            )
         return self.prompt_template.render(**kwargs)
 
     def execute(self, *args, **kwargs):
@@ -381,7 +388,7 @@ def starts_with_y(string_data):
 
 
 def execute_sql(sql, response_limit=500, db_path=None):
-    db_path = db_path or PM_SETTINGS['DB_PATH']
+    db_path = db_path or PM_SETTINGS["DB_PATH"]
     try:
         conn = sqlite3.connect(db_path)
         c = conn.cursor()
@@ -396,7 +403,7 @@ exec_sql = Prompt("exec_sql", execute_sql)
 
 
 def get_database_context(db_path=None):
-    db_path = db_path or PM_SETTINGS['DB_PATH']
+    db_path = db_path or PM_SETTINGS["DB_PATH"]
     # Could use this style to wrap rather than asyncio above for the schemas stuff.
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
