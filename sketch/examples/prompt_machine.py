@@ -32,6 +32,11 @@ env = Environment()
 
 
 def get_gpt3_response(prompt, temperature=0, stop=None):
+    if not PM_SETTINGS['openai_api_key']:
+        raise Exception("No OpenAI API key found")
+    # print the prompt if verbose mode
+    if PM_SETTINGS['VERBOSE']:
+        print(prompt)
     headers = {
         "Authorization": f"Bearer {PM_SETTINGS['openai_api_key']}",
         "Content-Type": "application/json",
