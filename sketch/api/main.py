@@ -283,6 +283,16 @@ async def chat_socket(
         try:
             while True:
                 wsdata = await websocket.receive_json()
+                if "typing" in wsdata:
+                    await manager.broadcast(
+                        thread_id,
+                        {
+                            "typing": wsdata["typing"],
+                            "sender": user.username,
+                            "meta": True,
+                        },
+                    )
+                    continue
                 if wsdata["message"] == "sudo clear thread":
                     await data.clear_thread(database, thread_id)
                     continue

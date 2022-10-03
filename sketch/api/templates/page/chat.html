@@ -4,8 +4,34 @@
 
 {% block body %}
 
+<style>
+    @keyframes blink {
+        50% {
+            fill: transparent
+        }
+    }
+
+    .dot {
+        animation: 1s blink infinite;
+        fill: grey;
+    }
+
+    .dot:nth-child(2) {
+        animation-delay: 250ms
+    }
+
+    .dot:nth-child(3) {
+        animation-delay: 500ms
+    }
+
+    .loader {
+        background-color: #f1f1f1;
+
+        color: grey;
+    }
+</style>
+
 <div class="flex-1 overflow-y-auto" id="block">
-    <p> Hi this is some text </p>
 </div>
 
 <div class="border-t-2 border-gray-200 p-4 8 mb-2">
@@ -41,14 +67,85 @@
     function isLocalhost(url) {
         return url.includes('localhost') || url.includes('127.0.0.1');
     }
+    var typingTimer;
+    var activelyTyping = false;
+
+    function isTyping(socket) {
+        if (!activelyTyping) {
+            socket.send(JSON.stringify({ 'typing': true }));
+        }
+        activelyTyping = true;
+        clearTimeout(typingTimer);
+        if ($("#chat-input").val()) {
+            typingTimer = setTimeout(() => { doneTyping(socket) }, 5000);
+        }
+    };
+
+    function doneTyping(socket) {
+        if (activelyTyping) {
+            socket.send(JSON.stringify({ 'typing': false }));
+        }
+        activelyTyping = false;
+    };
+
+    function getTypingBlock(color, name) {
+        return `
+        <div id="${name}typing" class="flex justify-${(name == "{{ user.username }}") ? "end" : "start"}">
+            <svg height="40" width="40">
+                <circle class="dot" cx="10" cy="20" r="3" style="fill:${color};" />
+                <circle class="dot" cx="20" cy="20" r="3" style="fill:${color};" />
+                <circle class="dot" cx="30" cy="20" r="3" style="fill:${color};" />
+            </svg>
+        </div>
+        `;
+    };
 
     // TODO: I should get rid of the jquery... just use vanilla...
     $(document).ready(function () {
         var url = (isLocalhost(location.host) ? "ws://" : "wss://") + location.host + "/ws/chat" + location.search;
         var socket = new WebSocket(url);
+        var colors = ["purple", "rose", "emerald", "amber", "zinc", "blue"];
+        var cmap = {};
         socket.onmessage = function (event) {
             var data = JSON.parse(event.data);
-            $("#block").append(`<p><b>${data.sender}:</b>${data.message}</p>`);
+            if (!(data.sender in cmap)) {
+                cmap[data.sender] = colors.pop();
+            }
+            var color = cmap[data.sender];
+            if (data["meta"]) {
+                if ("typing" in data) {
+                    if (data.typing) {
+                        if (!$("#" + data.sender + "typing").length) {
+                            console.log([data.sender, color]);
+                            $("#block").append(getTypingBlock(color, data.sender));
+                            $("#block").scrollTop($("#block")[0].scrollHeight);
+                        }
+                    } else {
+                        $("#" + data.sender + "typing").remove();
+                    }
+                    return;
+                }
+                $("#block").append(`
+                <div class="flex py-1 justify-${(data.sender == "{{ user.username }}") ? "end" : "start"}">
+                    <span class="inline-block px-2 py-2 rounded-l-lg rounded-br-none bg-slate-100 text-gray-900">${data.sender}</span>
+                    <span class="inline-block px-4 py-2 rounded-r-lg rounded-br-none bg-slate-100 text-gray-900">${data.message}</span>
+                </div>`);
+                $("#block").scrollTop($("#block")[0].scrollHeight);
+                return;
+            }
+            $("#block").append(`
+            <div class="flex py-1 justify-${(data.sender == "{{ user.username }}") ? "end" : "start"}">
+                <span class="inline-block px-2 py-2 rounded-l-lg rounded-br-none bg-${color}-100 text-gray-900" > ${data.sender}</span >
+                <span class="inline-block px-4 py-2 rounded-r-lg rounded-br-none bg-${color}-500 text-white">${data.message}</span>
+            </div>`);
+            $("#block").scrollTop($("#block")[0].scrollHeight);
+            // <div class="bg-blue-500">Hello</div><div class="bg-blue-100">Hello</div>
+            // <div class="bg-purple-500">Hello</div><div class="bg-purple-100">Hello</div>
+            // <div class="bg-rose-500">Hello</div><div class="bg-rose-100">Hello</div>
+            // <div class="bg-emerald-500">Hello</div><div class="bg-emerald-100">Hello</div>
+            // <div class="bg-amber-500">Hello</div><div class="bg-amber-100">Hello</div>
+            // <div class="bg-zinc-500">Hello</div><div class="bg-zinc-100">Hello</div>
+            // $("#block").append(`<div class="bg-gray-300 mx-4 my-2 p-2 rounded-lg"><p><b>${data.sender}:</b>${data.message}</p></div>`);
         };
         $("#file-upload-button").click(function () {
             $("#file-input").click();
@@ -57,6 +154,9 @@
             if (e.which == 13) {
                 e.preventDefault();
                 $("#send-button").click();
+                doneTyping(socket);
+            } else {
+                isTyping(socket);
             }
         });
         $("#send-button").click(function () {
