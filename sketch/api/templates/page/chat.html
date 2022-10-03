@@ -135,10 +135,11 @@
             }
             $("#block").append(`
             <div class="flex py-1 justify-${(data.sender == "{{ user.username }}") ? "end" : "start"}">
-                <span class="inline-block px-2 py-2 rounded-l-lg rounded-br-none bg-${color}-100 text-gray-900" > ${data.sender}</span >
-                <span class="inline-block px-4 py-2 rounded-r-lg rounded-br-none bg-${color}-500 text-white">${data.message}</span>
+                <span class="inline-block px-2 py-2 rounded-l-lg rounded-${(data.sender == "{{ user.username }}") ? "br" : "bl"}-none bg-${color}-100 text-gray-900" > ${data.sender}</span >
+                <span class="inline-block px-4 py-2 rounded-r-lg rounded-${(data.sender == "{{ user.username }}") ? "br" : "bl"}-none bg-${color}-500 text-white">${data.message}</span>
             </div>`);
             $("#block").scrollTop($("#block")[0].scrollHeight);
+            // <div class="justify-end rounded-br-none"></div><div class="justify-start rounded-bl-none"></div>
             // <div class="bg-blue-500">Hello</div><div class="bg-blue-100">Hello</div>
             // <div class="bg-purple-500">Hello</div><div class="bg-purple-100">Hello</div>
             // <div class="bg-rose-500">Hello</div><div class="bg-rose-100">Hello</div>

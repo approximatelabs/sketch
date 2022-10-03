@@ -301,6 +301,7 @@ async def chat_socket(
                 await manager.broadcast(thread_id, wsdata)
         except WebSocketDisconnect:
             manager.disconnect(thread_id, websocket, user.username)
+            await manager.broadcast(thread_id, {"sender": user.username, "meta": True, "typing": False})
             await manager.broadcast(
                 thread_id, {"message": "left", "sender": user.username, "meta": True}
             )
