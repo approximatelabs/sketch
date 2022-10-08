@@ -8,6 +8,7 @@ import uuid
 from hashlib import md5
 from re import S
 
+import aiohttp
 import requests
 import websockets
 from dotenv import load_dotenv
@@ -15,17 +16,20 @@ from jinja2 import Environment, meta
 
 # This is a very clear work in progress, just trying to move some code into a place where it can be cleaned later, but for now re-used.
 
+# TODO: Completely throw this away and re-build to be actually nice when I know what im doing...
+
 load_dotenv()
 
 
 PM_SETTINGS = {
     "BOT_TOKEN": "5a3556bb2de44a73ab2e5643cb633a6c",
     "THREAD_ID": "default",
-    "DB_PATH": "../datasets/nba_sql.db",
+    "DB_PATH": "../../datasets/nba_sql.db",
     "LOCAL_HISTORY_DB": "sqlite+aiosqlite:///promptHistory.db",
     "VERBOSE": True,
     "openai_api_key": os.environ.get("OPENAI_API_KEY"),
 }
+
 PM_SETTINGS[
     "uri"
 ] = f"wss://www.approx.dev/ws/chat?thread_id={PM_SETTINGS['THREAD_ID']}"
@@ -33,7 +37,38 @@ PM_SETTINGS[
 env = Environment()
 
 
-def get_gpt3_response(prompt, temperature=0, stop=None):
+def get_gpt3_response(prompt, temperature=0, stop=None, model_name="text-davinci-002"):
+    if not PM_SETTINGS["openai_api_key"]:
+        raise Exception("No OpenAI API key found")
+    # print the prompt if verbose mode
+    if PM_SETTINGS["VERBOSE"]:
+        print(prompt)
+    headers = {
+        "Authorization": f"Bearer {PM_SETTINGS['openai_api_key']}",
+        "Content-Type": "application/json",
+    }
+    data = {
+        "prompt": prompt,
+        "max_tokens": 500,
+        "temperature": temperature,
+        "model": model_name,
+        "presence_penalty": 0.8,
+        "frequency_penalty": 0.8,
+    }
+    if stop:
+        data["stop"] = stop
+    response = requests.post(
+        "https://api.openai.com/v1/completions", headers=headers, json=data
+    )
+    answer = response.json()
+    if "choices" in answer:
+        return answer["choices"][0]["text"]
+    else:
+        print("Possible error: query returned:", answer)
+    return response.json().get("choices", [{"text": ""}])[0]["text"]
+
+
+async def async_get_gpt3_response(prompt, temperature=0, stop=None):
     if not PM_SETTINGS["openai_api_key"]:
         raise Exception("No OpenAI API key found")
     # print the prompt if verbose mode
@@ -53,15 +88,16 @@ def get_gpt3_response(prompt, temperature=0, stop=None):
     }
     if stop:
         data["stop"] = stop
-    response = requests.post(
-        "https://api.openai.com/v1/completions", headers=headers, json=data
-    )
-    answer = response.json()
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            "https://api.openai.com/v1/completions", headers=headers, json=data
+        ) as resp:
+            answer = await resp.json()
     if "choices" in answer:
         return answer["choices"][0]["text"]
     else:
         print("Possible error: query returned:", answer)
-    return response.json().get("choices", [{"text": ""}])[0]["text"]
+    return answer.get("choices", [{"text": ""}])[0]["text"]
 
 
 import uuid
@@ -69,8 +105,6 @@ import uuid
 from databases import Database
 
 MIGRATION_VERSION_TABLE = "mochaver"
-
-# Maybe rewrite all the await and db stuff with to not be async??
 
 
 async def table_exists(db: Database, table_name: str):
@@ -238,14 +272,41 @@ class Prompt:
         return md5(inspect.getsource(self.function).encode("utf-8")).hexdigest()
 
 
+class asyncPrompt(Prompt):
+    async def __call__(self, *args, **kwargs):
+        st = time.time()
+        response = await self.execute(*args, **kwargs)
+        et = time.time()
+        if PM_SETTINGS["VERBOSE"]:
+            print_prompt_json(
+                self.id,
+                self.name,
+                {"args": args, "kwargs": kwargs},
+                response,
+                et - st,
+            )
+        asyncio.create_task(
+            record_prompt(
+                database,
+                self.id,
+                self.name,
+                {"args": args, "kwargs": kwargs},
+                response,
+                et - st,
+            )
+        )
+        return response
+
+
 # https://zetcode.com/python/jinja/
 class GPT3Prompt(Prompt):
-    def __init__(self, name, prompt_template_string, temperature=0, stop=None):
+    def __init__(self, name, prompt_template_string, temperature=0, stop=None, model_name="text-davinci-002"):
         super().__init__(name)
         self.prompt_template_string = prompt_template_string
         self.prompt_template = env.from_string(prompt_template_string)
         self.stop = stop
         self.temperature = temperature
+        self.model_name = model_name
 
     def get_named_args(self):
         return meta.find_undeclared_variables(env.parse(self.prompt_template_string))
@@ -261,13 +322,20 @@ class GPT3Prompt(Prompt):
 
     def execute(self, *args, **kwargs):
         prompt = self.get_prompt(*args, **kwargs)
-        response = get_gpt3_response(prompt, self.temperature, self.stop)
+        response = get_gpt3_response(prompt, self.temperature, self.stop, self.model_name)
         return response
 
     @property
     def id(self):
         # grab the code from execute method and hash it
         return md5(self.prompt_template_string.encode("utf-8")).hexdigest()
+
+
+class asyncGPT3Prompt(asyncPrompt, GPT3Prompt):
+    async def execute(self, *args, **kwargs):
+        prompt = self.get_prompt(*args, **kwargs)
+        response = await async_get_gpt3_response(prompt, self.temperature, self.stop)
+        return response
 
 
 isSQLyn = GPT3Prompt(
@@ -426,10 +494,21 @@ def get_database_context(db_path=None):
         outputschema + "Example Query (Russell Westbrook's total Triple-Doubles)\n"
     )
     database_context += """
-    SELECT SUM(td3) 
+    SELECT SUM(player_game_log.td3) 
     FROM player_game_log 
     LEFT JOIN player ON player.player_id = player_game_log.player_id 
     WHERE player.player_name = 'Russell Westbrook';
+
+    Example Query (Who scored the most points in any single game)
+
+    SELECT player_name, MAX(pts) 
+    FROM player_game_log 
+    LEFT JOIN player ON player.player_id = player_game_log.player_id 
+    GROUP BY player.player_name
+    ORDER BY MAX(pts) DESC
+    LIMIT 1;
+
+
     =========
     """
     return database_context
