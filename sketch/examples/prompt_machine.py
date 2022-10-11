@@ -68,7 +68,7 @@ def get_gpt3_response(prompt, temperature=0, stop=None, model_name="text-davinci
     return response.json().get("choices", [{"text": ""}])[0]["text"]
 
 
-async def async_get_gpt3_response(prompt, temperature=0, stop=None):
+async def async_get_gpt3_response(prompt, temperature=0, stop=None, model_name="text-davinci-002"):
     if not PM_SETTINGS["openai_api_key"]:
         raise Exception("No OpenAI API key found")
     # print the prompt if verbose mode
@@ -82,9 +82,9 @@ async def async_get_gpt3_response(prompt, temperature=0, stop=None):
         "prompt": prompt,
         "max_tokens": 500,
         "temperature": temperature,
-        "model": "text-davinci-002",
-        "presence_penalty": 0.4,
-        "frequency_penalty": 0.4,
+        "model": model_name,
+        "presence_penalty": 0.8,
+        "frequency_penalty": 0.8,
     }
     if stop:
         data["stop"] = stop
@@ -334,7 +334,7 @@ class GPT3Prompt(Prompt):
 class asyncGPT3Prompt(asyncPrompt, GPT3Prompt):
     async def execute(self, *args, **kwargs):
         prompt = self.get_prompt(*args, **kwargs)
-        response = await async_get_gpt3_response(prompt, self.temperature, self.stop)
+        response = await async_get_gpt3_response(prompt, self.temperature, self.stop, self.model_name)
         return response
 
 
