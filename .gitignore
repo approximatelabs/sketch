@@ -144,3 +144,6 @@ Thumbs.db
 *.index
 
 *.parquet
+
+*.csv
+*.xlsx

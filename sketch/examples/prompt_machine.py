@@ -37,7 +37,9 @@ PM_SETTINGS[
 env = Environment()
 
 
-def get_gpt3_response(prompt, temperature=0, stop=None, model_name="text-davinci-002"):
+def get_gpt3_completion_reqs(
+    prompt, temperature=0.0, stop=None, model_name="text-davinci-002"
+):
     if not PM_SETTINGS["openai_api_key"]:
         raise Exception("No OpenAI API key found")
     # print the prompt if verbose mode
@@ -57,47 +59,86 @@ def get_gpt3_response(prompt, temperature=0, stop=None, model_name="text-davinci
     }
     if stop:
         data["stop"] = stop
-    response = requests.post(
-        "https://api.openai.com/v1/completions", headers=headers, json=data
-    )
-    answer = response.json()
-    if "choices" in answer:
-        return answer["choices"][0]["text"]
-    else:
-        print("Possible error: query returned:", answer)
-    return response.json().get("choices", [{"text": ""}])[0]["text"]
+    return headers, data
 
 
-async def async_get_gpt3_response(prompt, temperature=0, stop=None, model_name="text-davinci-002"):
+def get_gpt3_edit_reqs(
+    instruction, input="", temperature=0.0, model_name="text-davinci-edit-001"
+):
     if not PM_SETTINGS["openai_api_key"]:
         raise Exception("No OpenAI API key found")
     # print the prompt if verbose mode
     if PM_SETTINGS["VERBOSE"]:
-        print(prompt)
+        print(input, instruction)
     headers = {
         "Authorization": f"Bearer {PM_SETTINGS['openai_api_key']}",
         "Content-Type": "application/json",
     }
     data = {
-        "prompt": prompt,
-        "max_tokens": 500,
+        "input": input,
+        "instruction": instruction,
         "temperature": temperature,
         "model": model_name,
-        "presence_penalty": 0.8,
-        "frequency_penalty": 0.8,
     }
-    if stop:
-        data["stop"] = stop
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            "https://api.openai.com/v1/completions", headers=headers, json=data
-        ) as resp:
-            answer = await resp.json()
+    return headers, data
+
+
+def get_gpt3_response_choice(answer):
     if "choices" in answer:
         return answer["choices"][0]["text"]
     else:
         print("Possible error: query returned:", answer)
     return answer.get("choices", [{"text": ""}])[0]["text"]
+
+
+def get_gpt3_response(
+    prompt, temperature=0.0, stop=None, model_name="text-davinci-002"
+):
+    headers, data = get_gpt3_completion_reqs(prompt, temperature, stop, model_name)
+    response = requests.post(
+        "https://api.openai.com/v1/engines/davinci/completions",
+        headers=headers,
+        data=json.dumps(data),
+    )
+    answer = response.json()
+    return get_gpt3_response_choice(answer)
+
+
+async def async_get_gpt3_response(
+    prompt, temperature=0.0, stop=None, model_name="text-davinci-002"
+):
+    headers, data = get_gpt3_completion_reqs(prompt, temperature, stop, model_name)
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            "https://api.openai.com/v1/completions", headers=headers, json=data
+        ) as resp:
+            answer = await resp.json()
+    return get_gpt3_response_choice(answer)
+
+
+def get_gpt3_edit_response(
+    instruction, input="", temperature=0, model_name="text-davinci-edit-001"
+):
+    headers, data = get_gpt3_edit_reqs(instruction, input, temperature, model_name)
+    response = requests.post(
+        "https://api.openai.com/v1/edits",
+        headers=headers,
+        data=json.dumps(data),
+    )
+    answer = response.json()
+    return get_gpt3_response_choice(answer)
+
+
+async def async_get_gpt3_edit_response(
+    instruction, input="", temperature=0.0, model_name="text-davinci-edit-001"
+):
+    headers, data = get_gpt3_edit_reqs(instruction, input, temperature, model_name)
+    async with aiohttp.ClientSession() as session:
+        async with session.post(
+            "https://api.openai.com/v1/edits", headers=headers, json=data
+        ) as resp:
+            answer = await resp.json()
+    return get_gpt3_response_choice(answer)
 
 
 import uuid
@@ -300,7 +341,16 @@ class asyncPrompt(Prompt):
 
 # https://zetcode.com/python/jinja/
 class GPT3Prompt(Prompt):
-    def __init__(self, name, prompt_template_string, temperature=0, stop=None, model_name="text-davinci-002"):
+    id_keys = ["prompt_template_string", "stop", "temperature", "model_name"]
+
+    def __init__(
+        self,
+        name,
+        prompt_template_string,
+        temperature=0.0,
+        stop=None,
+        model_name="text-davinci-002",
+    ):
         super().__init__(name)
         self.prompt_template_string = prompt_template_string
         self.prompt_template = env.from_string(prompt_template_string)
@@ -322,19 +372,92 @@ class GPT3Prompt(Prompt):
 
     def execute(self, *args, **kwargs):
         prompt = self.get_prompt(*args, **kwargs)
-        response = get_gpt3_response(prompt, self.temperature, self.stop, self.model_name)
+        response = get_gpt3_response(
+            prompt, self.temperature, self.stop, self.model_name
+        )
         return response
 
     @property
     def id(self):
         # grab the code from execute method and hash it
-        return md5(self.prompt_template_string.encode("utf-8")).hexdigest()
+        reprstuff = " ".join([str(getattr(self, k)) for k in self.id_keys])
+        return md5(reprstuff.encode("utf-8")).hexdigest()
 
 
 class asyncGPT3Prompt(asyncPrompt, GPT3Prompt):
     async def execute(self, *args, **kwargs):
         prompt = self.get_prompt(*args, **kwargs)
-        response = await async_get_gpt3_response(prompt, self.temperature, self.stop, self.model_name)
+        response = await async_get_gpt3_response(
+            prompt, self.temperature, self.stop, self.model_name
+        )
+        return response
+
+
+class GPT3Edit(Prompt):
+    id_keys = [
+        "instruction_template_string",
+        "temperature",
+        "model_name",
+    ]
+
+    def __init__(
+        self,
+        name,
+        instruction_template_string,
+        temperature=0.0,
+        model_name="text-davinci-edit-001",
+    ):
+        super().__init__(name)
+        self.instruction_template_string = instruction_template_string
+        self.instruction_template = env.from_string(instruction_template_string)
+        self.temperature = temperature
+        self.model_name = model_name
+
+    def get_named_args(self):
+        return meta.find_undeclared_variables(
+            env.parse(self.instruction_template_string)
+        )
+
+    def get_instruction(self, *args, **kwargs):
+        if len(args) > 0:
+            # also consider mixing kwargs and args
+            # also consider partial parsing with kwargs first, then applying remaining named args
+            return self.get_prompt(
+                **{n: a for n, a in zip(self.get_named_args(), args)}
+            )
+        return self.instruction_template.render(**kwargs)
+
+    def get_input(self, *args, **kwargs):
+        return kwargs.get("input", "")
+
+    def execute(self, *args, **kwargs):
+        input = self.get_input(*args, **kwargs)
+        instruction = self.get_instruction(*args, **kwargs)
+        response = get_gpt3_edit_response(
+            instruction,
+            input=input,
+            temperature=self.temperature,
+            model_name=self.model_name,
+        )
+        return response
+
+    @property
+    def id(self):
+        # grab the code from execute method and hash it
+        reprstuff = " ".join([str(getattr(self, k)) for k in self.id_keys])
+        return md5(reprstuff.encode("utf-8")).hexdigest()
+
+
+class asyncGPT3Edit(asyncPrompt, GPT3Edit):
+    async def execute(self, *args, **kwargs):
+        input = self.get_input(*args, **kwargs)
+        instruction = self.get_instruction(*args, **kwargs)
+        response = await async_get_gpt3_edit_response(
+            instruction,
+            input=input,
+            temperature=self.temperature,
+            model_name=self.model_name,
+        )
         return response
 
 
