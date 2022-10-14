@@ -54,8 +54,8 @@ def get_gpt3_completion_reqs(
         "max_tokens": 500,
         "temperature": temperature,
         "model": model_name,
-        "presence_penalty": 0.8,
-        "frequency_penalty": 0.8,
+        "presence_penalty": 0.2,
+        "frequency_penalty": 0.2,
     }
     if stop:
         data["stop"] = stop
@@ -236,7 +236,7 @@ async def record_prompt(
             "prompt_id": prompt_id,
             "prompt_name": prompt_name,
             "inputs": json.dumps(inputs),
-            "response": response,
+            "response": json.dumps(response),
             "duration": duration,
         },
     )
@@ -250,7 +250,7 @@ def print_prompt_json(prompt_id, prompt_name, inputs, response, duration):
                 "prompt_id": prompt_id,
                 "prompt_name": prompt_name,
                 "inputs": json.dumps(inputs),  # not sure, should this dump here?
-                "response": response,
+                "response": json.dumps(response),
                 "duration": duration,
             }
         )
@@ -405,7 +405,7 @@ class GPT3Edit(Prompt):
         name,
         instruction_template_string,
         temperature=0.0,
-        model_name="text-davinci-edit-001",
+        model_name="code-davinci-edit-001",
     ):
         super().__init__(name)
         self.instruction_template_string = instruction_template_string
