@@ -95,12 +95,23 @@ def get_gpt3_response(
     prompt, temperature=0.0, stop=None, model_name="text-davinci-002"
 ):
     headers, data = get_gpt3_completion_reqs(prompt, temperature, stop, model_name)
-    response = requests.post(
-        "https://api.openai.com/v1/engines/davinci/completions",
-        headers=headers,
-        data=json.dumps(data),
-    )
-    answer = response.json()
+    trying = 0
+    while trying < 4:
+        trying += 1
+        response = requests.post(
+            "https://api.openai.com/v1/engines/davinci/completions",
+            headers=headers,
+            data=json.dumps(data),
+        )
+        answer = response.json()
+        if "choices" in answer:
+            return get_gpt3_response_choice(answer)
+        else:
+            if "Rate limit" in answer.get("error", {}).get("message", ""):
+                print(".", end="")
+                time.sleep(trying * 10)
+            else:
+                print(f"Not sure what happened: {answer}")
     return get_gpt3_response_choice(answer)
 
 
@@ -108,11 +119,22 @@ async def async_get_gpt3_response(
     prompt, temperature=0.0, stop=None, model_name="text-davinci-002"
 ):
     headers, data = get_gpt3_completion_reqs(prompt, temperature, stop, model_name)
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            "https://api.openai.com/v1/completions", headers=headers, json=data
-        ) as resp:
-            answer = await resp.json()
+    trying = 0
+    while trying < 4:
+        trying += 1
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                "https://api.openai.com/v1/completions", headers=headers, json=data
+            ) as resp:
+                answer = await resp.json()
+                if "choices" in answer:
+                    return get_gpt3_response_choice(answer)
+                else:
+                    if "Rate limit" in answer.get("error", {}).get("message", ""):
+                        print(".", end="")
+                        await asyncio.sleep(trying * 10)
+                    else:
+                        print(f"Not sure what happened: {answer}")
     return get_gpt3_response_choice(answer)
 
 
@@ -120,12 +142,23 @@ def get_gpt3_edit_response(
     instruction, input="", temperature=0, model_name="text-davinci-edit-001"
 ):
     headers, data = get_gpt3_edit_reqs(instruction, input, temperature, model_name)
-    response = requests.post(
-        "https://api.openai.com/v1/edits",
-        headers=headers,
-        data=json.dumps(data),
-    )
-    answer = response.json()
+    trying = 0
+    while trying < 4:
+        trying += 1
+        response = requests.post(
+            "https://api.openai.com/v1/edits",
+            headers=headers,
+            data=json.dumps(data),
+        )
+        answer = response.json()
+        if "choices" in answer:
+            return get_gpt3_response_choice(answer)
+        else:
+            if "Rate limit" in answer.get("error", {}).get("message", ""):
+                print(".", end="")
+                time.sleep(trying * 10)
+            else:
+                print(f"Not sure what happened: {answer}")
     return get_gpt3_response_choice(answer)
 
 
@@ -133,11 +166,22 @@ async def async_get_gpt3_edit_response(
     instruction, input="", temperature=0.0, model_name="text-davinci-edit-001"
 ):
     headers, data = get_gpt3_edit_reqs(instruction, input, temperature, model_name)
-    async with aiohttp.ClientSession() as session:
-        async with session.post(
-            "https://api.openai.com/v1/edits", headers=headers, json=data
-        ) as resp:
-            answer = await resp.json()
+    trying = 0
+    while trying < 4:
+        trying += 1
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                "https://api.openai.com/v1/edits", headers=headers, json=data
+            ) as resp:
+                answer = await resp.json()
+                if "choices" in answer:
+                    return get_gpt3_response_choice(answer)
+                else:
+                    if "Rate limit" in answer.get("error", {}).get("message", ""):
+                        print(".", end="")
+                        await asyncio.sleep(trying * 10)
+                    else:
+                        print(f"Not sure what happened: {answer}")
     return get_gpt3_response_choice(answer)
 
 
