@@ -301,7 +301,9 @@ async def chat_socket(
                 await manager.broadcast(thread_id, wsdata)
         except WebSocketDisconnect:
             manager.disconnect(thread_id, websocket, user.username)
-            await manager.broadcast(thread_id, {"sender": user.username, "meta": True, "typing": False})
+            await manager.broadcast(
+                thread_id, {"sender": user.username, "meta": True, "typing": False}
+            )
             await manager.broadcast(
                 thread_id, {"message": "left", "sender": user.username, "meta": True}
             )
@@ -593,3 +595,13 @@ async def get_approx_best_joins(
         "component/references.html",
         {"request": request, "portfolio": pf},
     )
+
+
+@externalApiApp.get("/answer")
+async def get_answer_to_question(
+    request: Request, question: str, user: auth.User = Depends(auth.get_token_user)
+):
+    from .nbasql import get_nba_answer
+
+    result = await get_nba_answer(question)
+    return {"answer": result}
