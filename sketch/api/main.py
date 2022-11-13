@@ -8,7 +8,6 @@ from typing import List
 
 import altair as alt
 import arel
-import faiss
 import numpy as np
 import pandas as pd
 from fastapi import (
@@ -25,10 +24,13 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+import faiss
+
 from ..core import Portfolio, SketchPad
 from ..metrics import strings_from_sketchpad_sketches
 from . import auth, data, models
 from .deps import *
+from .promptapi import promptApiApp
 
 # logging.basicConfig()
 # logging.getLogger("databases").setLevel(logging.DEBUG)
@@ -76,6 +78,8 @@ externalApiApp.add_middleware(
 )
 
 app.mount("/api", externalApiApp)
+app.mount("/prompt", promptApiApp)
+
 app.mount(
     "/static",
     StaticFiles(directory=os.path.join(dir_path, "static")),
@@ -601,7 +605,7 @@ async def get_approx_best_joins(
 async def get_answer_to_question(
     request: Request, question: str, user: auth.User = Depends(auth.get_token_user)
 ):
-    from .nbasql import get_nba_answer
+    from .nbasql import get_data_for_question
 
-    result = await get_nba_answer(question)
+    result = await get_data_for_question(question)
     return {"answer": result}

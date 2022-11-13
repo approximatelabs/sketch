@@ -183,3 +183,141 @@ async def get_nba_answer(question):
     """Get the answer to the question from the NBA dataset."""
     sql = await get_sql_from_text_multi(question)
     return get_result(sql)
+
+
+import io
+import urllib.parse
+
+import pandas as pd
+
+
+async def get_sparql_wikidata_result(sparql):
+    query = sparql
+    url = "https://query.wikidata.org/sparql"
+    # requst to get including a header to accept text/csv
+    headers = {"Accept": "text/csv"}
+    async with aiohttp.ClientSession() as session:
+        async with session.get(
+            url, params={"query": query}, headers=headers
+        ) as response:
+            text = await response.text()
+            # try:
+            #     data = pd.read_csv(io.StringIO(text), sep=",")
+            # except Exception as e:
+            #     data = str(e)
+            return text
+
+
+async def search_wikidata(topic, property=False):
+    if property:
+        extra_args = "&type=property"
+    else:
+        extra_args = ""
+    url = f"https://www.wikidata.org/w/api.php?action=wbsearchentities&search={urllib.parse.quote(topic)}&language=en&limit=30&continue=10&format=json&uselang=en&type=item&origin=*{extra_args}"
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            data = await response.json()
+            return pd.DataFrame(data.get("search", []))
+
+
+gpt3_zeroshot_sparql = asyncGPT3Prompt(
+    "gpt3_zeroshot_sparql",
+    """
+Related entities (search result) for topics and properties
+{{ context }}
+----
+SPARQL (to be run on wikidata) for question [{{ question }}]:
+```""",
+    stop="```",
+    temperature=0.4,
+    model_name="code-davinci-002",
+)
+
+gpt3_get_topics_from_question = asyncGPT3Prompt(
+    "gpt3_get_topics_from_question",
+    """
+What are the top few (up to 5) entities (and topics) in the question, that need to be found in the wikidata database as entities: [{{ question }}]?
+1.""",
+)
+
+gpt3_get_properties_from_question = asyncGPT3Prompt(
+    "gpt3_get_properties_from_question",
+    """
+What are the top few (up to 5) properties in the question, that need to be found in the wikidata database as properties of entities: [{{ question }}]?
+1.""",
+)
+import re
+
+
+async def get_topics_from_question(question):
+    results = await gpt3_get_topics_from_question(question=question)
+    topics = [re.sub(r"^\d*\.", "", line).strip() for line in results.split("\n")]
+    return topics
+
+
+get_topics_from_question_prompt = asyncPrompt(
+    "get_topics_from_question_prompt", get_topics_from_question
+)
+
+
+async def get_properties_from_question(question):
+    results = await gpt3_get_properties_from_question(question=question)
+    props = [re.sub(r"^\d*\.", "", line).strip() for line in results.split("\n")]
+    return props
+
+
+get_properties_from_question_prompt = asyncPrompt(
+    "get_properties_from_question_prompt", get_properties_from_question
+)
+
+
+async def get_wikidata_entities_for_topics(topics, properties):
+    results = await asyncio.gather(*[search_wikidata(topic) for topic in topics])
+
+    def pretty_print_search(search_result, first_n=5):
+        if len(search_result) == 0:
+            return "No results"
+        return (
+            search_result[["id", "label", "description"]]
+            .iloc[:first_n]
+            .to_csv(index=False)
+        )
+
+    topic_part = "\n".join(
+        [
+            f"Topic [{topic}]\n{pretty_print_search(result)}"
+            for topic, result in zip(topics, results)
+        ]
+    )
+
+    results = await asyncio.gather(
+        *[search_wikidata(property, property=True) for property in properties]
+    )
+    property_part = "\n".join(
+        [
+            f"Property [{property}]\n{pretty_print_search(result, first_n=3)}"
+            for property, result in zip(properties, results)
+        ]
+    )
+    return topic_part + "\n" + property_part
+
+
+async def get_context_for_question(question):
+    topics = await get_topics_from_question_prompt(question=question)
+    properties = await get_properties_from_question_prompt(question=question)
+    return await get_wikidata_entities_for_topics(topics, properties)
+
+
+get_context_for_question_prompt = asyncPrompt(
+    "get_context_for_question_prompt", get_context_for_question
+)
+
+
+async def get_data_for_question(question):
+    wikidata_context = await get_context_for_question_prompt(question)
+    sparql = await gpt3_zeroshot_sparql(context=wikidata_context, question=question)
+    return await get_sparql_wikidata_result(sparql)
+
+get_data_for_question_prompt = asyncPrompt(
+    "get_data_for_question", get_data_for_question
+)

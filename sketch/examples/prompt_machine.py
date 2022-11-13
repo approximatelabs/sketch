@@ -26,13 +26,13 @@ PM_SETTINGS = {
     "THREAD_ID": "default",
     "DB_PATH": "../../datasets/nba_sql.db",
     "LOCAL_HISTORY_DB": "sqlite+aiosqlite:///promptHistory.db",
-    "VERBOSE": True,
+    "VERBOSE": False,
     "openai_api_key": os.environ.get("OPENAI_API_KEY"),
 }
 
 PM_SETTINGS[
     "uri"
-] = f"wss://www.approx.dev/ws/chat?thread_id={PM_SETTINGS['THREAD_ID']}"
+] = f"wss://api.approx.dev/ws/chat?thread_id={PM_SETTINGS['THREAD_ID']}"
 
 env = Environment()
 
@@ -256,9 +256,11 @@ async def migration_1(db: Database):
             prompt_id TEXT NOT NULL,
             prompt_name TEXT NOT NULL,
             inputs TEXT NOT NULL,
-            response TEXT NOT NULL,
-            duration REAL NOT NULL,
-            timestamp TEXT NOT NULL
+            response TEXT,
+            duration REAL,
+            timestamp TEXT NOT NULL,
+            promptstack TEXT,
+            parent_task_id TEXT
         ) WITHOUT ROWID;
         """,
     ]
@@ -269,9 +271,10 @@ async def migration_1(db: Database):
 async def record_prompt(
     db: Database, prompt_id, prompt_name, inputs, response, duration
 ):
+    stack = get_prompt_stack_and_outer_id()
     query = """
-        INSERT INTO promptHistory (id, prompt_id, prompt_name, inputs, response, duration, timestamp)
-        VALUES (:id, :prompt_id, :prompt_name, :inputs, :response, :duration, datetime());
+        INSERT INTO promptHistory (id, prompt_id, prompt_name, inputs, response, duration, timestamp, promptstack, parent_task_id)
+        VALUES (:id, :prompt_id, :prompt_name, :inputs, :response, :duration, datetime(), :promptstack, :parent_task_id);
     """
     await db.execute(
         query,
@@ -282,6 +285,8 @@ async def record_prompt(
             "inputs": json.dumps(inputs),
             "response": json.dumps(response),
             "duration": duration,
+            "promptstack": json.dumps(stack["prompts"]),
+            "parent_task_id": stack["task_id"],
         },
     )
 
@@ -313,7 +318,39 @@ async def get_prompts(db: Database, prompt_name: str, n=5):
 
 
 database = Database(PM_SETTINGS["LOCAL_HISTORY_DB"])
-asyncio.create_task(setup_database(database))
+
+# try:
+#     loop = asyncio.get_running_loop()
+# except RuntimeError:  # 'RuntimeError: There is no current event loop...'
+#     loop = None
+
+# if loop and loop.is_running():
+#     asyncio.create_task(setup_database(database))
+# else:
+#     asyncio.run(setup_database(database))
+
+
+async def get_prompts_for_task_id(task_id: str):
+    query = f"""
+        SELECT * FROM promptHistory
+        WHERE parent_task_id = :task_id
+    """
+    result = await database.fetch_all(query, values={"task_id": task_id})
+    return result
+
+
+def get_prompt_stack_and_outer_id():
+    promptstack = {"prompts": [], "task_id": None}
+    for frame in inspect.stack():
+        if frame.function == "__call__":
+            selfobj = frame[0].f_locals.get("self")
+            if selfobj is not None:
+                # we are in a class
+                if isinstance(selfobj, Prompt):
+                    promptstack["prompts"].append(selfobj.id)
+                elif getattr(selfobj, "task_id", None):
+                    promptstack["task_id"] = selfobj.task_id
+    return promptstack
 
 
 class Prompt:
@@ -329,7 +366,20 @@ class Prompt:
 
     def __call__(self, *args, **kwargs):
         st = time.time()
+        asyncio.create_task(
+            record_prompt(
+                database,
+                self.id,
+                self.name,
+                {"args": args, "kwargs": kwargs},
+                None,
+                None,
+            )
+        )
         response = self.execute(*args, **kwargs)
+        print(
+            f"Exiting prompt: {self.name} -- stack: {get_prompt_stack_and_outer_id()}"
+        )
         et = time.time()
         if PM_SETTINGS["VERBOSE"]:
             print_prompt_json(
@@ -360,7 +410,13 @@ class Prompt:
 class asyncPrompt(Prompt):
     async def __call__(self, *args, **kwargs):
         st = time.time()
+        print(
+            f"Entering prompt: {self.name} -- stack: {get_prompt_stack_and_outer_id()}"
+        )
         response = await self.execute(*args, **kwargs)
+        print(
+            f"Exiting prompt: {self.name} -- stack: {get_prompt_stack_and_outer_id()}"
+        )
         et = time.time()
         if PM_SETTINGS["VERBOSE"]:
             print_prompt_json(
