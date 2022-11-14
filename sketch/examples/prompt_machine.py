@@ -269,9 +269,8 @@ async def migration_1(db: Database):
 
 
 async def record_prompt(
-    db: Database, prompt_id, prompt_name, inputs, response, duration
+    db: Database, prompt_id, prompt_name, inputs, response, duration, stack
 ):
-    stack = get_prompt_stack_and_outer_id()
     query = """
         INSERT INTO promptHistory (id, prompt_id, prompt_name, inputs, response, duration, timestamp, promptstack, parent_task_id)
         VALUES (:id, :prompt_id, :prompt_name, :inputs, :response, :duration, datetime(), :promptstack, :parent_task_id);
@@ -336,7 +335,14 @@ async def get_prompts_for_task_id(task_id: str):
         WHERE parent_task_id = :task_id
     """
     result = await database.fetch_all(query, values={"task_id": task_id})
-    return result
+    outputdicts = []
+    for row in result:
+        outputdict = dict(row)
+        outputdict["inputs"] = json.loads(outputdict["inputs"])
+        outputdict["response"] = json.loads(outputdict["response"])
+        outputdict["promptstack"] = json.loads(outputdict["promptstack"])
+        outputdicts.append(outputdict)
+    return outputdicts
 
 
 def get_prompt_stack_and_outer_id():
@@ -365,8 +371,9 @@ class Prompt:
         return self.function(*args, **kwargs)
 
     def __call__(self, *args, **kwargs):
+        promptstack = get_prompt_stack_and_outer_id()
         st = time.time()
-        asyncio.create_task(
+        asyncio.run(
             record_prompt(
                 database,
                 self.id,
@@ -374,12 +381,12 @@ class Prompt:
                 {"args": args, "kwargs": kwargs},
                 None,
                 None,
+                promptstack,
             )
         )
+        print("Entering prompt", self.name, promptstack)
         response = self.execute(*args, **kwargs)
-        print(
-            f"Exiting prompt: {self.name} -- stack: {get_prompt_stack_and_outer_id()}"
-        )
+        print("Exiting prompt", self.name, promptstack)
         et = time.time()
         if PM_SETTINGS["VERBOSE"]:
             print_prompt_json(
@@ -389,7 +396,7 @@ class Prompt:
                 response,
                 et - st,
             )
-        asyncio.create_task(
+        asyncio.run(
             record_prompt(
                 database,
                 self.id,
@@ -397,6 +404,7 @@ class Prompt:
                 {"args": args, "kwargs": kwargs},
                 response,
                 et - st,
+                promptstack,
             )
         )
         return response
@@ -409,14 +417,20 @@ class Prompt:
 
 class asyncPrompt(Prompt):
     async def __call__(self, *args, **kwargs):
+        promptstack = get_prompt_stack_and_outer_id()
+        await record_prompt(
+            database,
+            self.id,
+            self.name,
+            {"args": args, "kwargs": kwargs},
+            None,
+            None,
+            promptstack,
+        )
         st = time.time()
-        print(
-            f"Entering prompt: {self.name} -- stack: {get_prompt_stack_and_outer_id()}"
-        )
+        print("Entering prompt", self.name, promptstack)
         response = await self.execute(*args, **kwargs)
-        print(
-            f"Exiting prompt: {self.name} -- stack: {get_prompt_stack_and_outer_id()}"
-        )
+        print("Exiting prompt", self.name, promptstack)
         et = time.time()
         if PM_SETTINGS["VERBOSE"]:
             print_prompt_json(
@@ -426,20 +440,18 @@ class asyncPrompt(Prompt):
                 response,
                 et - st,
             )
-        asyncio.create_task(
-            record_prompt(
-                database,
-                self.id,
-                self.name,
-                {"args": args, "kwargs": kwargs},
-                response,
-                et - st,
-            )
+        await record_prompt(
+            database,
+            self.id,
+            self.name,
+            {"args": args, "kwargs": kwargs},
+            response,
+            et - st,
+            promptstack,
         )
         return response
 
 
-# https://zetcode.com/python/jinja/
 class GPT3Prompt(Prompt):
     id_keys = ["prompt_template_string", "stop", "temperature", "model_name"]
 

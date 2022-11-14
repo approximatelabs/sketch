@@ -226,7 +226,11 @@ gpt3_zeroshot_sparql = asyncGPT3Prompt(
 Related entities (search result) for topics and properties
 {{ context }}
 ----
-SPARQL (to be run on wikidata) for question [{{ question }}]:
+SPARQL (to be run on wikidata) for question [{{ question }}]
+Limit the results (at most 100)
+
+Q: {{ question }}
+Query that answers the question:
 ```""",
     stop="```",
     temperature=0.4,
@@ -317,6 +321,7 @@ async def get_data_for_question(question):
     wikidata_context = await get_context_for_question_prompt(question)
     sparql = await gpt3_zeroshot_sparql(context=wikidata_context, question=question)
     return await get_sparql_wikidata_result(sparql)
+
 
 get_data_for_question_prompt = asyncPrompt(
     "get_data_for_question", get_data_for_question
