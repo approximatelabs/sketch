@@ -208,6 +208,11 @@ async def get_sparql_wikidata_result(sparql):
             return text
 
 
+get_sparql_wikidata_result_prompt = asyncPrompt(
+    "get_sparql_wikidata_result", get_sparql_wikidata_result
+)
+
+
 async def search_wikidata(topic, property=False):
     if property:
         extra_args = "&type=property"
@@ -320,7 +325,7 @@ get_context_for_question_prompt = asyncPrompt(
 async def get_data_for_question(question):
     wikidata_context = await get_context_for_question_prompt(question)
     sparql = await gpt3_zeroshot_sparql(context=wikidata_context, question=question)
-    return await get_sparql_wikidata_result(sparql)
+    return await get_sparql_wikidata_result_prompt(sparql)
 
 
 get_data_for_question_prompt = asyncPrompt(

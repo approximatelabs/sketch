@@ -385,7 +385,10 @@ class Prompt:
             )
         )
         print("Entering prompt", self.name, promptstack)
-        response = self.execute(*args, **kwargs)
+        try:
+            response = self.execute(*args, **kwargs)
+        except Exception as e:
+            response = f"ERROR\n{e}"
         print("Exiting prompt", self.name, promptstack)
         et = time.time()
         if PM_SETTINGS["VERBOSE"]:
@@ -429,7 +432,10 @@ class asyncPrompt(Prompt):
         )
         st = time.time()
         print("Entering prompt", self.name, promptstack)
-        response = await self.execute(*args, **kwargs)
+        try:
+            response = await self.execute(*args, **kwargs)
+        except Exception as e:
+            response = f"ERROR\n{e}"
         print("Exiting prompt", self.name, promptstack)
         et = time.time()
         if PM_SETTINGS["VERBOSE"]:
