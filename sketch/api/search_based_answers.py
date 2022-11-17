@@ -28,6 +28,7 @@ async def get_google_response(query):
                 "cx": "52cad330ac26249b7",
                 "q": query,
             },
+            timeout=5,
         ) as resp:
             response = await resp.json()
     return response
