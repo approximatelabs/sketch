@@ -7,22 +7,11 @@ import uuid
 
 from fastapi import BackgroundTasks, FastAPI
 
-from ..examples.prompt_machine import database, get_prompts_for_task_id, setup_database
+from ..examples.prompt_machine import get_prompts_for_task_id
 from .nbasql import get_data_for_question_prompt
 from .search_based_answers import google_answer_to_question
 
 promptApiApp = FastAPI(root_path="/prompt")
-
-
-@promptApiApp.on_event("startup")
-async def database_connect():
-    await database.connect()
-    await setup_database(database)
-
-
-@promptApiApp.on_event("shutdown")
-async def database_disconnect():
-    await database.disconnect()
 
 
 class CallWithId:
