@@ -345,6 +345,22 @@ async def get_prompts_for_task_id(task_id: str):
     return outputdicts
 
 
+async def get_task_id_before_and_after(task_id: str):
+    query = f"""
+        SELECT MIN(timestamp) as ts, parent_task_id FROM promptHistory
+        GROUP BY parent_task_id ORDER BY ts ASC
+    """
+    result = await database.fetch_all(query)
+    task_ids = [row["parent_task_id"] for row in result]
+    ind = task_ids.index(task_id)
+    if ind == 0:
+        return None, task_ids[ind + 1]
+    elif ind == len(task_ids) - 1:
+        return task_ids[ind - 1], None
+    else:
+        return task_ids[ind - 1], task_ids[ind + 1]
+
+
 def get_uid_from_args_kwargs(prompt, args, kwargs):
     strversion = json.dumps({"args": args, "kwargs": kwargs}, sort_keys=True)
     return sha256(prompt.id.encode("utf-8") + strversion.encode("utf-8")).hexdigest()

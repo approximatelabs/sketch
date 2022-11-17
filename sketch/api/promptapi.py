@@ -7,7 +7,10 @@ import uuid
 
 from fastapi import BackgroundTasks, FastAPI
 
-from ..examples.prompt_machine import get_prompts_for_task_id
+from ..examples.prompt_machine import (
+    get_prompts_for_task_id,
+    get_task_id_before_and_after,
+)
 from .nbasql import get_data_for_question_prompt
 from .search_based_answers import google_answer_to_question
 
@@ -48,3 +51,8 @@ async def read_root(prompt_name: str, input: str, background_tasks: BackgroundTa
 @promptApiApp.get("/status/{uid}")
 async def read_status(uid: str):
     return await get_prompts_for_task_id(uid)
+
+
+@promptApiApp.get("/before_and_after/{uid}")
+async def read_before_and_after(uid: str):
+    return await get_task_id_before_and_after(uid)
