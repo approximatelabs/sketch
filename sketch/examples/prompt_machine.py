@@ -5,7 +5,7 @@ import os
 import sqlite3
 import time
 import uuid
-from hashlib import md5
+from hashlib import md5, sha256
 from re import S
 
 import aiohttp
@@ -345,6 +345,11 @@ async def get_prompts_for_task_id(task_id: str):
     return outputdicts
 
 
+def get_uid_from_args_kwargs(prompt, args, kwargs):
+    strversion = json.dumps({"args": args, "kwargs": kwargs}, sort_keys=True)
+    return sha256(prompt.id.encode("utf-8") + strversion.encode("utf-8")).hexdigest()
+
+
 def get_prompt_stack_and_outer_id():
     promptstack = {"prompts": [], "task_id": None}
     for frame in inspect.stack():
@@ -353,7 +358,11 @@ def get_prompt_stack_and_outer_id():
             if selfobj is not None:
                 # we are in a class
                 if isinstance(selfobj, Prompt):
-                    promptstack["prompts"].append(selfobj.id)
+                    args, kwargs = frame[0].f_locals.get("args"), frame[0].f_locals.get(
+                        "kwargs"
+                    )
+                    uid_from_args = get_uid_from_args_kwargs(selfobj, args, kwargs)
+                    promptstack["prompts"].append(uid_from_args)
                 elif getattr(selfobj, "task_id", None):
                     promptstack["task_id"] = selfobj.task_id
     return promptstack
@@ -372,11 +381,12 @@ class Prompt:
 
     def __call__(self, *args, **kwargs):
         promptstack = get_prompt_stack_and_outer_id()
+        execution_id = get_uid_from_args_kwargs(self, args, kwargs)
         st = time.time()
         asyncio.run(
             record_prompt(
                 database,
-                self.id,
+                execution_id,
                 self.name,
                 {"args": args, "kwargs": kwargs},
                 None,
@@ -385,15 +395,17 @@ class Prompt:
             )
         )
         print("Entering prompt", self.name, promptstack)
+        toRaise = None
         try:
             response = self.execute(*args, **kwargs)
         except Exception as e:
             response = f"ERROR\n{e}"
+            toRaise = e
         print("Exiting prompt", self.name, promptstack)
         et = time.time()
         if PM_SETTINGS["VERBOSE"]:
             print_prompt_json(
-                self.id,
+                execution_id,
                 self.name,
                 {"args": args, "kwargs": kwargs},
                 response,
@@ -402,7 +414,7 @@ class Prompt:
         asyncio.run(
             record_prompt(
                 database,
-                self.id,
+                execution_id,
                 self.name,
                 {"args": args, "kwargs": kwargs},
                 response,
@@ -410,6 +422,8 @@ class Prompt:
                 promptstack,
             )
         )
+        if toRaise is not None:
+            raise toRaise
         return response
 
     @property
@@ -421,9 +435,10 @@ class Prompt:
 class asyncPrompt(Prompt):
     async def __call__(self, *args, **kwargs):
         promptstack = get_prompt_stack_and_outer_id()
+        execution_id = get_uid_from_args_kwargs(self, args, kwargs)
         await record_prompt(
             database,
-            self.id,
+            execution_id,
             self.name,
             {"args": args, "kwargs": kwargs},
             None,
@@ -432,15 +447,17 @@ class asyncPrompt(Prompt):
         )
         st = time.time()
         print("Entering prompt", self.name, promptstack)
+        toRaise = None
         try:
             response = await self.execute(*args, **kwargs)
         except Exception as e:
+            toRaise = e
             response = f"ERROR\n{e}"
         print("Exiting prompt", self.name, promptstack)
         et = time.time()
         if PM_SETTINGS["VERBOSE"]:
             print_prompt_json(
-                self.id,
+                execution_id,
                 self.name,
                 {"args": args, "kwargs": kwargs},
                 response,
@@ -448,13 +465,15 @@ class asyncPrompt(Prompt):
             )
         await record_prompt(
             database,
-            self.id,
+            execution_id,
             self.name,
             {"args": args, "kwargs": kwargs},
             response,
             et - st,
             promptstack,
         )
+        if toRaise is not None:
+            raise toRaise
         return response
 
 
@@ -577,6 +596,13 @@ class asyncGPT3Edit(asyncPrompt, GPT3Edit):
             model_name=self.model_name,
         )
         return response
+
+
+def prompt(f):
+    # check if f is async or not
+    if inspect.iscoroutinefunction(f):
+        return asyncPrompt(f.__name__, f)
+    return Prompt(f.__name__, f)
 
 
 isSQLyn = GPT3Prompt(

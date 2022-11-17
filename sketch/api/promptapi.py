@@ -2,12 +2,14 @@ import asyncio
 import inspect
 import json
 import time
+import traceback
 import uuid
 
 from fastapi import BackgroundTasks, FastAPI
 
 from ..examples.prompt_machine import database, get_prompts_for_task_id, setup_database
 from .nbasql import get_data_for_question_prompt
+from .search_based_answers import google_answer_to_question
 
 promptApiApp = FastAPI(root_path="/prompt")
 
@@ -29,14 +31,19 @@ class CallWithId:
         self.task_id = task_id
 
     def __call__(self, *args, **kwargs):
-        result = self.func(*args, **kwargs)
-        if inspect.isawaitable(result):
-            result = asyncio.run(result)
+        try:
+            result = self.func(*args, **kwargs)
+            if inspect.isawaitable(result):
+                result = asyncio.run(result)
+        except Exception as e:
+            print("Error in task", self.task_id)
+            traceback.print_tb(e.__traceback__)
         return result
 
 
 prompt_lookup = {
     "text2sparql": get_data_for_question_prompt,
+    "google_answer_to_question": google_answer_to_question,
 }
 
 
