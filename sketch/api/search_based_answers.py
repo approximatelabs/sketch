@@ -127,7 +127,12 @@ async def google_answer_to_question(question):
         get_answer_to_question_based_on_website(question=question, url=url)
         for url in urls
     ]
-    answers = [await x for x in futures]
+    answers = []
+    for future in futures:
+        try:
+            answers.append(await future)
+        except Exception as e:
+            answers.append("ERROR: " + str(e))
     return await google_based_answer(
         question=question,
         search_results=search_results,
