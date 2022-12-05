@@ -27,12 +27,9 @@ from fastapi.templating import Jinja2Templates
 import faiss
 
 from ..core import Portfolio, SketchPad
-from ..examples.prompt_machine import database as database2
-from ..examples.prompt_machine import setup_database as setup_database2
 from ..metrics import strings_from_sketchpad_sketches
 from . import auth, data, models
 from .deps import *
-from .promptapi import promptApiApp
 
 # logging.basicConfig()
 # logging.getLogger("databases").setLevel(logging.DEBUG)
@@ -80,7 +77,6 @@ externalApiApp.add_middleware(
 )
 
 app.mount("/api", externalApiApp)
-app.mount("/prompt", promptApiApp)
 
 app.mount(
     "/static",
@@ -93,14 +89,11 @@ app.mount(
 async def database_connect():
     await database.connect()
     await data.setup_database(database)
-    await database2.connect()
-    await setup_database2(database2)
 
 
 @app.on_event("shutdown")
 async def database_disconnect():
     await database.disconnect()
-    await database2.disconnect()
 
 
 @app.on_event("startup")
