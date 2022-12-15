@@ -1,5 +1,41 @@
-[tool.isort]
-profile = "black"
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
+build-backend = "setuptools.build_meta"
 
-[tool.black]
-line-length = 88
+[project]
+name="sketch"
+description="Compute, store and operate on data sketches"
+readme = "README.md"
+requires-python = ">=3.7"
+keywords = ["data", "sketch", "model", "etl", "automatic", "join", "ai", "embedding", "profiling"]
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "pandas>=1.5.2",
+    "datasketches>=4.0.0"
+]
+urls = {homepage = "https://github.com/approximatelabs/sketch"}
+dynamic = ["version"]
+
+
+[tool.setuptools_scm]
+
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+envlist = py37, py38, py39, py310, py311
+
+[gh-actions]
+python =
+    3.7: py37
+    3.8: py38
+    3.9: py39
+    3.10: py310
+    3.11: py311
+
+[testenv]
+deps= -rdev-requirements.txt
+commands = python -m pytest tests
+"""
