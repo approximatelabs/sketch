@@ -6,7 +6,6 @@ import sqlite3
 import uuid
 
 import pandas as pd
-import requests
 from packaging import version
 
 from .metrics import binary_metrics, strings_from_sketchpad_sketches, unary_metrics
@@ -82,7 +81,9 @@ class SketchPad:
         }
 
     @classmethod
-    def from_series(cls, series: pd.Series, reference: Reference) -> "SketchPad":
+    def from_series(cls, series: pd.Series, reference: Reference = None) -> "SketchPad":
+        if reference is None:
+            reference = PandasDataframeColumn("df", series.name)
         sp = cls(reference, initialize_sketches=False)
         for skcls in cls.sketch_classes:
             sp.sketches.append(skcls.from_series(series))
@@ -206,66 +207,3 @@ class Portfolio:
             heapq.heappush(scores, (score, sp.id))
         top_n = heapq.nlargest(n, scores, key=lambda x: x[0])
         return [(s, self.sketchpads[i]) for s, i in top_n]
-
-    def find_joinables_html(self, url=None, apiKey=None, rawhtml=False):
-        self.upload(url=url, apiKey=apiKey)
-        # now get the matching
-        # maybe instead, return iframe?
-        # or maybe don't make it an api page only? not sure, but the embedding isn't "clean"
-        # right now, lots of runaway visualization. I'm believing that iframe would solve..
-        resp = requests.get(
-            (url or "http://localhost:8000/api") + "/component/get_approx_best_joins",
-            json=list(self.sketchpads.keys()),
-            headers={"Authorization": f"Bearer {apiKey}"},
-        )
-        if resp.status_code != 200:
-            raise Exception(f"Error getting joinables: {resp.text}")
-
-        if rawhtml:
-            return resp.text
-
-        from urllib.parse import quote
-
-        from IPython.display import IFrame, display
-
-        # TODO: consider iframe resizing magic (both in parent code, some JS, and in the frame (more JS))
-        display(
-            IFrame(
-                src=f"data:text/html;charset=utf-8,{quote(resp.text)}",
-                width="100%",
-                height="600",
-                extras=[
-                    'scrolling="no"',
-                ],
-            )
-        )
-
-    # Should be able to create, for every API method, a component version -- oh, these are "more than macros"
-    #  -> the component library = API library? Is that an equivalance? or is it a 1 to many? gotta think about this.
-    #  for now, removing the text-based representation.
-
-    def upload(self, url=None, apiKey=None, batch=False):
-        # TODO: Try and get URL from a global state variable
-        # TODO: try and get api key from global state variable
-        if url is None:
-            # TODO: if no url is provided, we should assume sketch.dev in future.
-            url = "http://localhost:8000/api"
-        if batch:
-            response = requests.post(
-                url + "/upload_portfolio",
-                json=[x.to_dict() for x in self.sketchpads.values()],
-                headers={"Authorization": f"Bearer {apiKey}"},
-            )
-            if response.status_code != 200:
-                logging.error(f"Error uploading portfolio: {response.text}")
-        else:
-            for skechpad in self.sketchpads.values():
-                response = requests.post(
-                    url + "/upload_sketchpad",
-                    json=skechpad.to_dict(),
-                    headers={"Authorization": f"Bearer {apiKey}"},
-                )
-                if response.status_code != 200:
-                    logging.error(f"Failed to upload sketchpad {skechpad.id}")
-                    logging.error(response.text)
-                    return False

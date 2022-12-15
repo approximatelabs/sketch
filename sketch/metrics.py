@@ -1,5 +1,5 @@
 import datasketches
-from scipy.interpolate import interp1d
+import numpy as np
 
 
 def strings_from_sketchpad_sketches(sketchpad):
@@ -7,9 +7,23 @@ def strings_from_sketchpad_sketches(sketchpad):
     output = ""
     ds = sketchpad.get_sketchdata_by_name("DS_FI")
     # consider showing the counts of frequent items?? Might be useful information.
-    output += " ".join([x[0] for x in ds.get_frequent_items(datasketches.frequent_items_error_type.NO_FALSE_POSITIVES)])
+    output += " ".join(
+        [
+            x[0]
+            for x in ds.get_frequent_items(
+                datasketches.frequent_items_error_type.NO_FALSE_POSITIVES
+            )
+        ]
+    )
     output += "\n"
-    output += " ".join([x[0] for x in ds.get_frequent_items(datasketches.frequent_items_error_type.NO_FALSE_NEGATIVES)])
+    output += " ".join(
+        [
+            x[0]
+            for x in ds.get_frequent_items(
+                datasketches.frequent_items_error_type.NO_FALSE_NEGATIVES
+            )
+        ]
+    )
     output += "\n"
     ds = sketchpad.get_sketchdata_by_name("DS_VO")
     output += " ".join([x[0] for x in ds.get_samples()])
@@ -79,12 +93,10 @@ def unary_metrics(sketchpad):
     return metrics
 
 
-# given (x, y) points for a curve (monotonically increasing)
-# and (x, y) for another curve, find the max(abs(delta-y)) for the entire curve
 def max_delta(x1, y1, x2, y2):
-    f1 = interp1d(x1, y1, bounds_error=False, fill_value=(y1[0], y1[-1]))
-    f2 = interp1d(x2, y2, bounds_error=False, fill_value=(y2[0], y2[-1]))
-    return max(abs(f1(x) - f2(x)) for x in (x1 + x2))
+    f1 = np.interp(np.concatenate([x1, x2]), x2, y2)
+    f2 = np.interp(np.concatenate([x1, x2]), x1, y1)
+    return np.max(np.abs(f1 - f2))
 
 
 def get_CDF(s, N=100):
@@ -151,5 +163,4 @@ def binary_metrics(sketchpad1, sketchpad2):
     #     metrics["kll_ks_score"] = ks_estimate(ds1, ds2)
     # else:
     #     metrics["kll_ks_score"] = 1.0
-
     return metrics

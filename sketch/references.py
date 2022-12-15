@@ -1,7 +1,13 @@
 import hashlib
 import json
 import os
-from functools import cache
+
+try:
+    from functools import cache
+except ImportError:
+    from functools import lru_cache
+
+    cache = lru_cache(maxsize=None)
 from typing import Dict
 
 
@@ -56,9 +62,7 @@ class Reference:
 
     @property
     def short_id(self):
-        return int.from_bytes(
-                bytes.fromhex(self.id[:16]), "big", signed=True
-            )
+        return int.from_bytes(bytes.fromhex(self.id[:16]), "big", signed=True)
 
 
 # TODO: make the subclasses of Reference have smarter args
