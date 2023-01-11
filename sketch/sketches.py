@@ -167,7 +167,7 @@ class DataSketchesSketchBase(SketchBase):
 
     @active
     def add_row(self, row):
-        self.data.update(str(row).encode('utf-8'))
+        self.data.update(str(row).encode("utf-8"))
 
     def pack(self):
         return base64.b64encode(self.data.serialize()).decode("utf-8")
@@ -191,17 +191,18 @@ class DS_HLL(DataSketchesSketchBase):
 
 class DS_CPC(DataSketchesSketchBase):
     sketch_class = datasketches.cpc_sketch
-    init_args = (12, )
+    init_args = (12,)
 
 
 class DS_FI(DataSketchesSketchBase):
     sketch_class = datasketches.frequent_strings_sketch
-    init_args = (10, )
+    init_args = (10,)
 
 
 class DS_KLL(DataSketchesSketchBase):
     sketch_class = datasketches.kll_floats_sketch
-    init_args = (160, )
+    init_args = (160,)
+
     @active
     def add_row(self, row):
         if isinstance(row, (int, float)):
@@ -210,13 +211,12 @@ class DS_KLL(DataSketchesSketchBase):
 
 class DS_Quantiles(DataSketchesSketchBase):
     sketch_class = datasketches.quantiles_floats_sketch
-    init_args = (128, )
+    init_args = (128,)
 
     @active
     def add_row(self, row):
         if isinstance(row, (int, float)):
             self.data.update(row)
-
 
 
 class DS_REQ(DataSketchesSketchBase):
@@ -227,7 +227,6 @@ class DS_REQ(DataSketchesSketchBase):
     def add_row(self, row):
         if isinstance(row, (int, float)):
             self.data.update(row)
-
 
 
 class DS_THETA(DataSketchesSketchBase):
@@ -246,21 +245,23 @@ class DS_THETA(DataSketchesSketchBase):
 
 
 class PyUnicodeStringsSerDe(datasketches.PyObjectSerDe):
-  def get_size(self, item):
-    return int(4 + len(item.encode('utf-8')))
+    def get_size(self, item):
+        return int(4 + len(item.encode("utf-8")))
 
-  def to_bytes(self, item: str):
-    b = bytearray()
-    b.extend(len(item.encode('utf-8')).to_bytes(4, 'little'))
-    b.extend(item.encode('utf-8'))
-    return bytes(b)
+    def to_bytes(self, item: str):
+        b = bytearray()
+        b.extend(len(item.encode("utf-8")).to_bytes(4, "little"))
+        b.extend(item.encode("utf-8"))
+        return bytes(b)
 
-  def from_bytes(self, data: bytes, offset: int):
-    num_chars = int.from_bytes(data[offset:offset+3], 'little')
-    if (num_chars < 0 or num_chars > offset + len(data)):
-        raise IndexError(f'num_chars read must be non-negative and not larger than the buffer. Found {num_chars}')
-    str = data[offset+4:offset+4+num_chars].decode('utf-8')
-    return (str, 4+num_chars)
+    def from_bytes(self, data: bytes, offset: int):
+        num_chars = int.from_bytes(data[offset : offset + 3], "little")
+        if num_chars < 0 or num_chars > offset + len(data):
+            raise IndexError(
+                f"num_chars read must be non-negative and not larger than the buffer. Found {num_chars}"
+            )
+        str = data[offset + 4 : offset + 4 + num_chars].decode("utf-8")
+        return (str, 4 + num_chars)
 
 
 class DS_VO(DataSketchesSketchBase):
@@ -272,24 +273,28 @@ class DS_VO(DataSketchesSketchBase):
         self.data.update(str(row))
 
     def pack(self):
-        return base64.b64encode(self.data.serialize(PyUnicodeStringsSerDe())).decode("utf-8")
+        return base64.b64encode(self.data.serialize(PyUnicodeStringsSerDe())).decode(
+            "utf-8"
+        )
 
     @classmethod
     def unpack(cls, data):
-        return cls.sketch_class.deserialize(base64.b64decode(data), PyUnicodeStringsSerDe())
+        return cls.sketch_class.deserialize(
+            base64.b64decode(data), PyUnicodeStringsSerDe()
+        )
+
 
 class UnicodeMatches(SketchBase):
     unicode_ranges = {
-            "emoticon": (0x1F600, 0x1F64F),
-            "control": (0x00, 0x1F),
-            "digits": (0x30, 0x39),
-            "latin-lower": (0x41, 0x5A),
-            "latin-upper": (0x61, 0x7A),
-            "basic-latin": (0x00, 0x7F),
-            "extended-latin": (0x0080, 0x02AF),
-            "UNKNOWN": (0x00, 0x00),
-        }
-
+        "emoticon": (0x1F600, 0x1F64F),
+        "control": (0x00, 0x1F),
+        "digits": (0x30, 0x39),
+        "latin-lower": (0x41, 0x5A),
+        "latin-upper": (0x61, 0x7A),
+        "basic-latin": (0x00, 0x7F),
+        "extended-latin": (0x0080, 0x02AF),
+        "UNKNOWN": (0x00, 0x00),
+    }
 
     @active
     def add_row(self, row):
@@ -301,10 +306,10 @@ class UnicodeMatches(SketchBase):
                         self.data[name] += 1
                         found = True
                 if not found:
-                    self.data['UNKNOWN'] += 1
+                    self.data["UNKNOWN"] += 1
 
     def pack(self):
-        return base64.b64encode(json.dumps(self.data).encode('utf-8')).decode("utf-8")
+        return base64.b64encode(json.dumps(self.data).encode("utf-8")).decode("utf-8")
 
     @classmethod
     def unpack(cls, data):
