@@ -1,4 +1,5 @@
 import inspect
+import os
 
 import datasketches
 import numpy as np
@@ -188,6 +189,24 @@ class SketchHelper:
             return result
         display(HTML(f"""<pre>{result}</pre>"""))
 
-    def apply(self, prompt_template_string):
+    def apply(self, prompt_template_string, **kwargs):
+        row_limit = int(os.environ.get("SKETCH_ROW_OVERRIDE_LIMIT", "10"))
+        if len(self._obj) > row_limit:
+            raise RuntimeError(
+                f"Too many rows for apply \n (SKETCH_ROW_OVERRIDE_LIMIT: {row_limit}, Actual: {len(self._obj)})"
+            )
         new_gpt3_prompt = lambdaprompt.GPT3Prompt(prompt_template_string)
-        pass
+        named_args = new_gpt3_prompt.get_named_args()
+        known_args = set(self._obj.columns) | set(kwargs.keys())
+        needed_args = set(named_args)
+        if needed_args - known_args:
+            raise RuntimeError(
+                f"Missing: {needed_args - known_args}\nKnown: {known_args}"
+            )
+
+        def apply_func(row):
+            row_dict = row.to_dict()
+            row_dict.update(kwargs)
+            return new_gpt3_prompt(**row_dict)
+
+        return self._obj.apply(apply_func, axis=1)
