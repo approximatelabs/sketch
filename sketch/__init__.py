@@ -1,2 +1,2 @@
 from .core import Portfolio, SketchPad  # noqa
-from .howto import SketchHelper  # noqa
+from .pandas_extension import SketchHelper  # noqa
