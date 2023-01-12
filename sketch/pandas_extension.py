@@ -177,6 +177,7 @@ Summary statistics and descriptive data of dataframe [`{{ dfname }}`]:
 ```
 {{ data_description }}
 ```
+The dataframe is loaded and in memory, and currently named [ {{ dfname }} ].
 
 Code to solve [ {{ how }} ]?:
 ```python
