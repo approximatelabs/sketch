@@ -269,3 +269,26 @@ class SketchHelper:
             return new_gpt3_prompt(**row_dict)
 
         return self._obj.apply(apply_func, axis=1)
+
+        # # Async version
+
+        # new_gpt3_prompt = lambdaprompt.AsyncGPT3Prompt(prompt_template_string)
+        # named_args = new_gpt3_prompt.get_named_args()
+        # known_args = set(self._obj.columns) | set(kwargs.keys())
+        # needed_args = set(named_args)
+        # if needed_args - known_args:
+        #     raise RuntimeError(
+        #         f"Missing: {needed_args - known_args}\nKnown: {known_args}"
+        #     )
+
+        # ind, vals = [], []
+        # for i, row in self._obj.iterrows():
+        #     ind.append(i)
+        #     row_dict = row.to_dict()
+        #     row_dict.update(kwargs)
+        #     vals.append(new_gpt3_prompt(**row_dict))
+
+        # # gather the results
+        # vals = asyncio.run(asyncio.gather(*vals))
+
+        # return pd.Series(vals, index=ind)
