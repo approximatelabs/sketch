@@ -8,6 +8,8 @@ Enhance your workflow by asking questions of your data, and getting code suggest
 pip install sketch
 ```
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/gist/bluecoconut/410a979d94613ea2aaf29987cf0233bc/sketch-demo.ipynb)
+
 ## Demo 
 
 https://user-images.githubusercontent.com/916073/211990122-21c90ddb-8eb7-4288-b2cf-1314e7796504.mp4
