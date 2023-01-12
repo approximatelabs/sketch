@@ -1,6 +1,6 @@
 # sketch
 
-Co-pilot for pandas users, AI that understands the content of data, greatly enhancing the relevance of suggestions. Adding data context to AI code-writing assistants, usable in any Jupyter in seconds.
+Co-pilot for pandas users, AI that understands the content of data, greatly enhancing the relevance of suggestions. Adding data context to AI code-writing assistants, usable in notebooks in seconds.
 
 Enhance your workflow by asking questions of your data, and getting code suggestions to answer those questions. Reduce the time spent googling, asking chat-gpt3, and even re-writing co-pilot suggestions. Get more accurate code suggestions for code and pandas, all without adding any plugin to your IDE.
 
