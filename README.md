@@ -10,7 +10,7 @@ pip install sketch
 
 ## Demo 
 
-![](./sketch-demo-basic.mp4)
+https://user-images.githubusercontent.com/916073/211990122-21c90ddb-8eb7-4288-b2cf-1314e7796504.mp4
 
 ## How to use
 
