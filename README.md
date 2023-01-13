@@ -12,7 +12,19 @@ pip install sketch
 
 ## Demo 
 
-https://user-images.githubusercontent.com/916073/211990122-21c90ddb-8eb7-4288-b2cf-1314e7796504.mp4
+In the following demo we follow a "standard" (hypothetical) data-analysis workflow, showing a Natural Language interace that successfully navigates many tasks in the data stack landscape. 
+
+- Catalogging:
+  - General tagging (eg. PII identification)
+  - Metadata generation (names and descriptions)
+- Data Engineering:
+  - Parsing
+  - Derived Feature Creation / Extraction
+- Data Analysis:
+  - Data Questions
+  - Data Visualization
+
+https://user-images.githubusercontent.com/916073/212327045-204899a0-e4b5-4f71-872f-4cd807667c68.mp4
 
 ## How to use
 
