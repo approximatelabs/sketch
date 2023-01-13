@@ -1,6 +1,9 @@
+import ast
 import base64
+import importlib
 import inspect
 import json
+import logging
 import os
 
 import datasketches
@@ -113,9 +116,11 @@ def get_parts_from_df(df, useSketches=False):
         for col in df.columns:
             extra = {
                 "rows": len(df[col]),
-                "head-sample": str(df[col].head(5).tolist()),
                 "count": int(df[col].count()),
                 "uniqecount": int(df[col].nunique()),
+                "head-sample": str(
+                    [string_repr_truncated(x) for x in df[col].head(5).tolist()]
+                ),
             }
             # if column is numeric, get quantiles
             if df[col].dtype in [np.float64, np.int64]:
@@ -138,6 +143,11 @@ def call_prompt_on_dataframe(df, prompt, **kwargs):
     names = retrieve_name(df)
     name = "df" if len(names) == 0 else names[0]
     column_names, data_types, extras, index_col_name = get_parts_from_df(df)
+    max_columns = int(os.environ.get("SKETCH_MAX_COLUMNS", "15"))
+    if len(column_names) > max_columns:
+        raise ValueError(
+            f"Too many columns ({len(column_names)}), max is {max_columns} in current version (set SKETCH_MAX_COLUMNS to override)"
+        )
     prompt_kwargs = dict(
         dfname=name,
         column_names=to_b64(column_names),
@@ -181,6 +191,15 @@ The dataframe is loaded and in memory, and currently named [ {{ dfname }} ].
 
 Code to solve [ {{ how }} ]?:
 ```python
+{% if previous_answer is defined %}
+{{ previous_answer }}
+```
+{{ previous_error }}
+
+Fixing for error, and trying again...
+Code to solve [ {{ how }} ]?:
+```
+{% endif %}
 """,
     stop=["```"],
     # model_name="code-davinci-002",
@@ -198,7 +217,20 @@ def howto_from_parts(
         column_names, data_types, extras, index_col_name
     )
     description = pd.json_normalize(description).to_csv(index=False)
-    return howto_prompt(dfname=dfname, data_description=description, how=how)
+    code = howto_prompt(dfname=dfname, data_description=description, how=how)
+    try:
+        ast.parse(code)
+    except SyntaxError as e:
+        # if we get a syntax error, try again, but include the error message
+        # only do 1 retry
+        code = howto_prompt(
+            dfname=dfname,
+            data_description=description,
+            how=how,
+            previous_answer=code,
+            previous_error=str(e),
+        )
+    return code
 
 
 ask_prompt = lambdaprompt.GPT3Prompt(
@@ -231,6 +263,46 @@ def ask_from_parts(
     return ask_prompt(dfname=dfname, data_description=description, question=question)
 
 
+def get_import_modules_from_codestring(code):
+    """
+    Given a code string, return a list of import module
+
+    eg `from sklearn import linear_model` would return `["sklearn"]`
+    eg. `print(3)` would return `[]`
+    eg. `import pandas as pd; import matplotlib.pyplot as plt` would return `["pandas", "matplotlib"]`
+    """
+    # use ast to parse the code
+    tree = ast.parse(code)
+    # get all the import statements
+    import_statements = [node for node in tree.body if isinstance(node, ast.Import)]
+    # get all the import from statements
+    import_from_statements = [
+        node for node in tree.body if isinstance(node, ast.ImportFrom)
+    ]
+    # get all the module names
+    import_modules = []
+    for node in import_statements:
+        for alias in node.names:
+            import_modules.append(alias.name)
+    import_modules += [node.module for node in import_from_statements]
+    # only take parent module (eg. `matplotlib.pyplot` -> `matplotlib`)
+    import_modules = [module.split(".")[0] for module in import_modules]
+    return import_modules
+
+
+def validate_pycode_result(result):
+    try:
+        modules = get_import_modules_from_codestring(result)
+        for module in modules:
+            temp = importlib.util.find_spec(module)
+            if temp is None:
+                logging.warning(
+                    f"Module {module} not found, but part of suggestion. May need to pip install..."
+                )
+    except SyntaxError:
+        logging.warning("Syntax error in suggestion -- might not work directly")
+
+
 @pd.api.extensions.register_dataframe_accessor("sketch")
 class SketchHelper:
     def __init__(self, pandas_obj):
@@ -238,6 +310,7 @@ class SketchHelper:
 
     def howto(self, how, call_display=True):
         result = call_prompt_on_dataframe(self._obj, howto_from_parts, how=how)
+        validate_pycode_result(result)
         if not call_display:
             return result
         display(HTML(f"""<pre>{result}</pre>"""))
@@ -246,7 +319,7 @@ class SketchHelper:
         result = call_prompt_on_dataframe(self._obj, ask_from_parts, question=question)
         if not call_display:
             return result
-        display(HTML(f"""<p>{result}</p>"""))
+        display(HTML(f"""{result}"""))
 
     def apply(self, prompt_template_string, **kwargs):
         row_limit = int(os.environ.get("SKETCH_ROW_OVERRIDE_LIMIT", "10"))
