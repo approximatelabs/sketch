@@ -1,20 +1,16 @@
 # sketch
 
-Co-pilot for pandas users, AI that understands the content of data, greatly enhancing the relevance of suggestions. Adding data context to AI code-writing assistants, usable in notebooks in seconds.
-
-Enhance your workflow by asking questions of your data, and getting code suggestions to answer those questions. Reduce the time spent googling, asking chat-gpt3, and even re-writing co-pilot suggestions. Get more accurate code suggestions for code and pandas, all without adding any plugin to your IDE.
+Sketch is an AI code-writing assistant for pandas users that understands the context of your data, greatly improving the relevance of suggestions. Sketch is usable in seconds and doesn't require adding a plugin to your IDE.
 
 ```bash
 pip install sketch
 ```
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/gist/bluecoconut/410a979d94613ea2aaf29987cf0233bc/sketch-demo.ipynb)
-
 ## Demo 
 
-In the following demo we follow a "standard" (hypothetical) data-analysis workflow, showing a Natural Language interace that successfully navigates many tasks in the data stack landscape. 
+Here we follow a "standard" (hypothetical) data-analysis workflow, showing a Natural Language interace that successfully navigates many tasks in the data stack landscape. 
 
-- Catalogging:
+- Data Catalogging:
   - General tagging (eg. PII identification)
   - Metadata generation (names and descriptions)
 - Data Engineering:
@@ -25,6 +21,8 @@ In the following demo we follow a "standard" (hypothetical) data-analysis workfl
   - Data visualization
 
 https://user-images.githubusercontent.com/916073/212602281-4ebd090f-09c4-495d-b48d-0b4c37b9f665.mp4
+
+Try it out in colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/gist/bluecoconut/410a979d94613ea2aaf29987cf0233bc/sketch-demo.ipynb)
 
 ## How to use
 
