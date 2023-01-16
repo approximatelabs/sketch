@@ -18,13 +18,13 @@ In the following demo we follow a "standard" (hypothetical) data-analysis workfl
   - General tagging (eg. PII identification)
   - Metadata generation (names and descriptions)
 - Data Engineering:
-  - Parsing
-  - Derived Feature Creation / Extraction
+  - Data cleaning and masking (compliance)
+  - Derived feature creation and extraction
 - Data Analysis:
-  - Data Questions
-  - Data Visualization
+  - Data questions
+  - Data visualization
 
-https://user-images.githubusercontent.com/916073/212327045-204899a0-e4b5-4f71-872f-4cd807667c68.mp4
+https://user-images.githubusercontent.com/916073/212602281-4ebd090f-09c4-495d-b48d-0b4c37b9f665.mp4
 
 ## How to use
 
