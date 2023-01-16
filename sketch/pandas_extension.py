@@ -5,6 +5,7 @@ import inspect
 import json
 import logging
 import os
+import uuid
 
 import datasketches
 import numpy as np
@@ -36,14 +37,14 @@ def strtobool(val):
         raise ValueError("invalid truth value %r" % (val,))
 
 
-def string_repr_truncated(val, size=30):
+def string_repr_truncated(val, size=100):
     result = str(val)
     if len(result) > size:
         result = result[: (size - 3)] + "..."
     return result
 
 
-def get_top_n(ds, n=5, size=30, reject_all_1=True):
+def get_top_n(ds, n=5, size=100, reject_all_1=True):
     top_n = [
         (count, string_repr_truncated(val, size=size))
         for val, count, *_ in ds.get_frequent_items(
@@ -143,7 +144,7 @@ def call_prompt_on_dataframe(df, prompt, **kwargs):
     names = retrieve_name(df)
     name = "df" if len(names) == 0 else names[0]
     column_names, data_types, extras, index_col_name = get_parts_from_df(df)
-    max_columns = int(os.environ.get("SKETCH_MAX_COLUMNS", "15"))
+    max_columns = int(os.environ.get("SKETCH_MAX_COLUMNS", "20"))
     if len(column_names) > max_columns:
         raise ValueError(
             f"Too many columns ({len(column_names)}), max is {max_columns} in current version (set SKETCH_MAX_COLUMNS to override)"
@@ -313,7 +314,17 @@ class SketchHelper:
         validate_pycode_result(result)
         if not call_display:
             return result
-        display(HTML(f"""<pre>{result}</pre>"""))
+        # output text in a <pre>, also on the side (on top) include a `copy` button that puts it onto clipboard
+        uid = uuid.uuid4()
+        b64_encoded_result = to_b64(result)
+        display(
+            HTML(
+                f"""<div style="display:flex;flex-direction:row;justify-content:space-between;">
+                <pre style="width: 100%; white-space: pre-wrap;" id="{uid}">{result}</pre>
+                <button style="height: fit-content;" onclick="navigator.clipboard.writeText(JSON.parse(atob(`{b64_encoded_result}`)))">Copy</button>
+                </div>"""
+            )
+        )
 
     def ask(self, question, call_display=True):
         result = call_prompt_on_dataframe(self._obj, ask_from_parts, question=question)
