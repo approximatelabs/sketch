@@ -118,7 +118,7 @@ def get_parts_from_df(df, useSketches=False):
             extra = {
                 "rows": len(df[col]),
                 "count": int(df[col].count()),
-                "uniqecount": int(df[col].apply(str).nunique()),
+                "uniquecount": int(df[col].apply(str).nunique()),
                 "head-sample": str(
                     [string_repr_truncated(x) for x in df[col].head(5).tolist()]
                 ),
