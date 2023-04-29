@@ -10,7 +10,7 @@ pip install sketch
 
 ## Demo 
 
-Here we follow a "standard" (hypothetical) data-analysis workflow, showing a Natural Language interace that successfully navigates many tasks in the data stack landscape. 
+Here we follow a "standard" (hypothetical) data-analysis workflow, showing a Natural Language interface that successfully navigates many tasks in the data stack landscape. 
 
 - Data Catalogging:
   - General tagging (eg. PII identification)
