@@ -17,12 +17,15 @@ dependencies = [
     "datasketch>=1.5.8",
     "datasketches>=4.0.0",
     "ipython",
-    "lambdaprompt",
+    "lambdaprompt>=0.5.2",
     "packaging"
 ]
 urls = {homepage = "https://github.com/approximatelabs/sketch"}
 dynamic = ["version"]
 
+[project.optional-dependencies]
+local = ["lambdaprompt[local]"]
+all = ["sketch[local]"]
 
 [tool.setuptools_scm]
 
