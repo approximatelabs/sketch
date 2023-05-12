@@ -23,6 +23,9 @@ dependencies = [
 urls = {homepage = "https://github.com/approximatelabs/sketch"}
 dynamic = ["version"]
 
+[project.optional-dependencies]
+local = ["lambdaprompt[local]"]
+all = ["sketch[local]"]
 
 [tool.setuptools_scm]
 

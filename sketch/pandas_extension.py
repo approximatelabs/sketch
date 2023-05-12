@@ -181,7 +181,7 @@ and run with your own open-ai key
     return text_to_copy
 
 
-howto_prompt = lambdaprompt.GPT3Prompt(
+howto_prompt = lambdaprompt.Completion(
     """
 For the pandas dataframe ({{ dfname }}) the user wants code to solve a problem.
 Summary statistics and descriptive data of dataframe [`{{ dfname }}`]:
@@ -234,7 +234,7 @@ def howto_from_parts(
     return code
 
 
-ask_prompt = lambdaprompt.GPT3Prompt(
+ask_prompt = lambdaprompt.Completion(
     """
 For the pandas dataframe ({{ dfname }}) the user wants an answer to a question about the data.
 Summary statistics and descriptive data of dataframe [`{{ dfname }}`]:
@@ -338,7 +338,7 @@ class SketchHelper:
             raise RuntimeError(
                 f"Too many rows for apply \n (SKETCH_ROW_OVERRIDE_LIMIT: {row_limit}, Actual: {len(self._obj)})"
             )
-        new_gpt3_prompt = lambdaprompt.GPT3Prompt(prompt_template_string)
+        new_gpt3_prompt = lambdaprompt.Completion(prompt_template_string)
         named_args = new_gpt3_prompt.get_named_args()
         known_args = set(self._obj.columns) | set(kwargs.keys())
         needed_args = set(named_args)
