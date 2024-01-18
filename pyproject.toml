@@ -17,7 +17,7 @@ dependencies = [
     "datasketch>=1.5.8",
     "datasketches>=4.0.0",
     "ipython",
-    "lambdaprompt>=0.5.4",
+    "lambdaprompt>=0.6.0",
     "packaging"
 ]
 urls = {homepage = "https://github.com/approximatelabs/sketch"}
