@@ -16,6 +16,18 @@ from IPython.display import HTML, display
 import lambdaprompt
 import sketch
 
+# Astraflow (by UCloud) — OpenAI-compatible platform supporting 200+ models.
+# If ASTRAFLOW_API_KEY (global) or ASTRAFLOW_CN_API_KEY (China) is set, configure
+# lambdaprompt to use the Astraflow endpoint transparently.
+_ASTRAFLOW_KEY = os.environ.get("ASTRAFLOW_API_KEY")
+_ASTRAFLOW_CN_KEY = os.environ.get("ASTRAFLOW_CN_API_KEY")
+if _ASTRAFLOW_KEY:
+    os.environ.setdefault("OPENAI_API_KEY", _ASTRAFLOW_KEY)
+    os.environ.setdefault("OPENAI_API_BASE", "https://api-us-ca.umodelverse.ai/v1")
+elif _ASTRAFLOW_CN_KEY:
+    os.environ.setdefault("OPENAI_API_KEY", _ASTRAFLOW_CN_KEY)
+    os.environ.setdefault("OPENAI_API_BASE", "https://api.modelverse.cn/v1")
+
 
 def retrieve_name(var):
     callers_local_vars = inspect.currentframe().f_back.f_back.f_back.f_locals.items()

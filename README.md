@@ -82,6 +82,20 @@ You can also directly call OpenAI directly (and not use our endpoint) by using y
 (1) `SKETCH_USE_REMOTE_LAMBDAPROMPT=False`
 (2) `OPENAI_API_KEY=YOUR_API_KEY`
 
+You can also use [**Astraflow**](https://astraflow.ucloud-global.com) by UCloud — an OpenAI-compatible platform supporting 200+ models — as a drop-in backend. Get an API key at https://astraflow.ucloud-global.com (global) or https://astraflow.ucloud.cn (China), then set:
+
+```python
+# Global endpoint
+os.environ['ASTRAFLOW_API_KEY'] = 'your-astraflow-api-key'
+os.environ['SKETCH_USE_REMOTE_LAMBDAPROMPT'] = 'False'
+```
+
+```python
+# China endpoint
+os.environ['ASTRAFLOW_CN_API_KEY'] = 'your-astraflow-cn-api-key'
+os.environ['SKETCH_USE_REMOTE_LAMBDAPROMPT'] = 'False'
+```
+
 ## How it works
 
 Sketch uses efficient approximation algorithms (data sketches) to quickly summarize your data, and feed that information into language models. Right now it does this by summarizing the columns and writing these summary statistics as additional context to be used by the code-writing prompt. In the future we hope to feed these sketches directly into custom made "data + language" foundation models to get more accurate results.
